@@ -1,0 +1,85 @@
+project:
+  input_folder: "D:/TAT_MS_INTERCITY/Data/Input"
+  results_folder: "D:/TAT_MS_INTERCITY/Data/Results"
+  backup_folder: "D:/TAT_MS_INTERCITY/Data/Backups"
+  master_report: "All_Trips_Master_Report.xlsx"
+
+files:
+  accepted_extensions:
+    - ".xlsx"
+  date_folder_format: "%d-%m-%Y"
+  pair_report_prefix: "paired"
+  duplicate_check: true
+  use_file_checksum: true
+
+columns:
+  latitude: "lat"
+  longitude: "lon"
+  timestamp: "timestamp"
+  speed: "speed"
+
+units:
+  input_speed: "km/h"
+  distance: "km"
+  duration: "minutes"
+  acceleration: "m/s2"
+
+cleaning:
+  remove_exact_duplicates: true
+  sort_by_timestamp: true
+  latitude_min: -90
+  latitude_max: 90
+  longitude_min: -180
+  longitude_max: 180
+  minimum_valid_rows: 2
+  speed_interpolation_max_gap_seconds: 60
+
+pairing:
+  start_location_tolerance_m: 500
+  end_location_tolerance_m: 500
+  require_same_route: true
+  strict_pair_same_day: true
+  strict_pair_similar_start_time: true
+  strict_start_time_tolerance_minutes: 30
+  allow_non_strict_pairs: true
+
+cropping:
+  use_location_before_time: true
+  preserve_original_files: true
+  create_pair_specific_copies: true
+  common_point_tolerance_m: 500
+
+phases:
+  acceleration_threshold_mps2: 0.14
+  deceleration_threshold_mps2: -0.14
+  inching_min_speed_kmh: 0.01
+  inching_max_speed_kmh: 5.0
+  stationary_time_gap_minutes: 5
+  replenishment_station_tolerance_m: 500
+
+traffic:
+  classify_peak_and_normal: true
+  peak_periods: []
+
+outputs:
+  include_original_ev_data: true
+  include_original_ice_data: true
+  include_cropped_ev_data: true
+  include_cropped_ice_data: true
+  include_full_trip_results: true
+  include_cropped_results: true
+  include_phase_time: true
+  include_phase_distance: true
+  include_data_quality: true
+  include_visual_representation: true
+  include_trip_pair_route_counts: true
+  include_strict_pair_averages: true
+  include_all_valid_pair_averages: true
+
+processing:
+  incremental_update: true
+  rebuild_all_option: true
+  backup_before_rebuild: true
+  prevent_duplicate_trips: true
+  prevent_duplicate_pairs: true
+  
