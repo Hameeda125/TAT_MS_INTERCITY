@@ -70,7 +70,7 @@ from config_loader import load_config
 
 CANDIDATE_WORKBOOK_NAME = "Pairing_Candidates.xlsx"
 CANDIDATE_SHEET_NAME = "Candidate Pairs"
-SCRIPT_VERSION = "2026-08-09_STRICT_COMMON_ROUTE_DISTANCE_EVIDENCE"
+SCRIPT_VERSION = "2026-09-29_TEMPORAL_STRICT_COMMON_ROUTE_V3"
 VERIFIED_INDEX_NAME = "verified_trip_index.csv"
 PAIR_INDEX_NAME = "pair_index.csv"
 CROPPING_LOG_NAME = "Pair_Cropping_Log.xlsx"
@@ -237,11 +237,28 @@ def _parse_timestamp(value):
 
 
 def _parse_datetime_series(series: pd.Series) -> pd.Series:
-    parsed = pd.to_datetime(series, errors="coerce", dayfirst=True)
-    unresolved = parsed.isna() & series.notna()
-    if bool(unresolved.any()):
-        parsed.loc[unresolved] = pd.to_datetime(series.loc[unresolved], errors="coerce")
-    return parsed
+    """Parse candidate/reconciliation timestamps without ISO date swapping."""
+
+    def parse_one(value):
+        if value is None or pd.isna(value):
+            return pd.NaT
+
+        if isinstance(value, (pd.Timestamp, datetime)):
+            return pd.Timestamp(value)
+
+        text_value = str(value).strip()
+        if not text_value:
+            return pd.NaT
+
+        if re.match(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:\s|T|$)", text_value):
+            return pd.to_datetime(text_value, errors="coerce", yearfirst=True)
+
+        parsed = pd.to_datetime(text_value, errors="coerce", dayfirst=True)
+        if pd.isna(parsed):
+            parsed = pd.to_datetime(text_value, errors="coerce")
+        return parsed
+
+    return series.map(parse_one)
 
 
 def _read_csv_with_fallback(path: Path) -> pd.DataFrame:
@@ -1198,11 +1215,15 @@ def _route_validation(
                 f"internal unmatched run {maximum_unmatched_m:.0f} m > "
                 f"{rules['maximum_internal_unmatched_distance_m']:.0f} m"
             )
-        if shorter_trip_coverage < rules["minimum_shorter_trip_coverage_fraction"]:
-            failures.append(
-                f"shorter-trip coverage {shorter_trip_coverage:.1%} < "
-                f"{rules['minimum_shorter_trip_coverage_fraction']:.1%}"
-            )
+        # Shorter-trip common coverage is retained as an audit/reporting
+        # metric, but it is NOT a hard rejection rule.  A scientifically
+        # usable continuous common section may therefore remain eligible as
+        # COMMON_ROUTE_SEGMENT_TAT when the other hard route and exact
+        # cropped-distance checks pass.
+        coverage_below_reference = (
+            shorter_trip_coverage
+            < rules["minimum_shorter_trip_coverage_fraction"]
+        )
 
         start_latitude, start_longitude = _anchor_midpoint(
             ev_route["latitude"][ev_start_index],
@@ -1281,6 +1302,7 @@ def _route_validation(
                 "maximum_unmatched_m": maximum_unmatched_m,
                 "common_length_m": common_length_m,
                 "shorter_trip_coverage": shorter_trip_coverage,
+                "coverage_below_reference": coverage_below_reference,
                 "start_latitude": start_latitude,
                 "start_longitude": start_longitude,
                 "end_latitude": end_latitude,
@@ -1333,6 +1355,17 @@ def _route_validation(
         )
         != "NO_SAMPLING_WARNING"
     )
+    coverage_note = ""
+    if best.get("coverage_below_reference", False):
+        coverage_note = (
+            " Shorter-trip common coverage is "
+            f"{best['shorter_trip_coverage']:.1%}, below the "
+            f"{rules['minimum_shorter_trip_coverage_fraction']:.0%} reference "
+            "threshold; retained as COMMON_ROUTE_SEGMENT_TAT because the hard "
+            "route-continuity, direction, overlap, internal-gap, minimum-length, "
+            "and exact cropped-distance checks passed."
+        )
+
     base.update(
         {
             "gps_route_validation_status": "PASSED_ORDERED_ROUTE_VALIDATION",
@@ -1342,6 +1375,7 @@ def _route_validation(
             "route_validation_reason": (
                 "Continuous same-direction common route confirmed; shared start/end "
                 "anchors and the hard cropped-distance tolerance are satisfied."
+                + coverage_note
             ),
             "ordered_match_count": len(best["run"]),
             "median_heading_difference_degrees": best[
@@ -1500,11 +1534,28 @@ def _build_crop(
     interior["Common Anchor ID"] = ""
     interior["Is Interpolated Crop Anchor"] = False
 
+    concat_frames = [
+        pd.DataFrame([start_row]),
+        interior,
+        pd.DataFrame([end_row]),
+    ]
+    concat_column_order = list(
+        dict.fromkeys(
+            column
+            for frame in concat_frames
+            for column in frame.columns
+        )
+    )
+    nonempty_concat_frames = [
+        frame.dropna(axis=1, how="all")
+        for frame in concat_frames
+        if not frame.empty
+    ]
     crop = pd.concat(
-        [pd.DataFrame([start_row]), interior, pd.DataFrame([end_row])],
+        nonempty_concat_frames,
         ignore_index=True,
         sort=False,
-    )
+    ).reindex(columns=concat_column_order)
     crop = crop.sort_values(TIMESTAMP_COLUMN, kind="stable").reset_index(drop=True)
     crop["Pair ID"] = pair_id
     crop["Vehicle Type"] = vehicle_type
@@ -1913,8 +1964,16 @@ def _rules_table(rules: dict) -> pd.DataFrame:
             },
             {
                 "Rule": "Shorter-trip common coverage",
-                "Value": f">= {rules['minimum_shorter_trip_coverage_fraction']:.0%}",
-                "Purpose": "Hard rule that prevents a small accidental overlap from becoming a pair",
+                "Value": (
+                    f"Reported against {rules['minimum_shorter_trip_coverage_fraction']:.0%} "
+                    "reference threshold; not a hard rejection rule"
+                ),
+                "Purpose": (
+                    "Retain the coverage metric for audit and scope labelling. "
+                    "A valid continuous common section can remain eligible as "
+                    "COMMON_ROUTE_SEGMENT_TAT when the other hard route and "
+                    "cropped-distance checks pass."
+                ),
             },
             {
                 "Rule": "Weak route match",
@@ -1948,8 +2007,15 @@ def _rules_table(rules: dict) -> pd.DataFrame:
             },
             {
                 "Rule": "Intercity pair class",
-                "Value": "Same calendar day = STRICT; different calendar day = NONSTRICT",
-                "Purpose": "Start-time similarity is used only for the four temporal subcategories",
+                "Value": (
+                    "Preserved from candidate_pairing.py: same route/direction and "
+                    "endpoint criteria, plus same calendar day OR actual start-time "
+                    "difference within the configured tolerance"
+                ),
+                "Purpose": (
+                    "Cropping validates route/common-section quality and does not "
+                    "overwrite the upstream STRICT/NONSTRICT class"
+                ),
             },
             {
                 "Rule": "Trip reuse",
@@ -2052,63 +2118,28 @@ def _replace_paired_folder(
 
 def _derive_intercity_pair_class_and_category(candidate: pd.Series) -> tuple[str, str]:
     """
-    Intercity project class rule.
+    Preserve the class and temporal category assigned by candidate_pairing.py.
 
-    CLASS is determined ONLY by calendar day:
-        same day       -> STRICT
-        different day  -> NONSTRICT
+    Candidate pairing is the single source of truth for STRICT/NONSTRICT
+    temporal classification.  In the current INTERCITY rule, a candidate can be STRICT
+    when the route/direction and endpoint criteria pass and either the EV/ICE
+    trips are on the same calendar day or their actual start timestamps are
+    within the configured start-time tolerance.
 
-    The start-time relationship is retained only as a subtype:
-        same day + similar time       -> SAME_DAY_SIMILAR_TIME
-        same day + different time     -> SAME_DAY_DIFFERENT_TIME
-        different day + similar time  -> DIFFERENT_DAY_SIMILAR_TIME
-        different day + different time-> DIFFERENT_DAY_DIFFERENT_TIME
-
-    This stage does not alter route validation or distance/QC acceptance.
+    This cropping stage validates the common route, anchors, overlap, coverage,
+    and cropped-distance comparability.  It must not independently reclassify
+    a candidate by calendar day, because doing so would overwrite the temporal
+    rule already applied upstream.
     """
-    same_day = _safe_bool(candidate.get("same_calendar_day"), default=False)
-    start_difference = _safe_float(
-        candidate.get("start_clock_difference_minutes"),
-        default=np.nan,
-    )
+    pair_class = _normalise_pair_class(candidate.get("candidate_class"))
 
-    if math.isnan(start_difference):
-        ev_start = _parse_timestamp(candidate.get("ev_verified_start"))
-        ice_start = _parse_timestamp(candidate.get("ice_verified_start"))
-        if not pd.isna(ev_start) and not pd.isna(ice_start):
-            ev_minutes = (
-                ev_start.hour * 60
-                + ev_start.minute
-                + ev_start.second / 60
-            )
-            ice_minutes = (
-                ice_start.hour * 60
-                + ice_start.minute
-                + ice_start.second / 60
-            )
-            direct = abs(ev_minutes - ice_minutes)
-            start_difference = min(direct, 1440 - direct)
-
-    # Use the same 30-minute threshold already used by candidate pairing.
-    similar_time = (
-        not math.isnan(start_difference)
-        and start_difference <= 30.0
-    )
-
-    if same_day:
-        pair_class = "STRICT"
-        category = (
-            "SAME_DAY_SIMILAR_TIME"
-            if similar_time
-            else "SAME_DAY_DIFFERENT_TIME"
+    category = _clean_text(candidate.get("non_strict_category"))
+    if not category:
+        same_day = _safe_bool(
+            candidate.get("same_calendar_day"),
+            default=False,
         )
-    else:
-        pair_class = "NONSTRICT"
-        category = (
-            "DIFFERENT_DAY_SIMILAR_TIME"
-            if similar_time
-            else "DIFFERENT_DAY_DIFFERENT_TIME"
-        )
+        category = "SAME_DAY" if same_day else "DIFFERENT_DAY"
 
     return pair_class, category
 
@@ -2133,14 +2164,10 @@ def _base_audit_record(candidate: pd.Series) -> dict:
     # ------------------------------------------------------------
     # INTERCITY CLASSIFICATION
     # ------------------------------------------------------------
-    # The final class is derived from the actual calendar dates here,
-    # so Stage 3 cannot accidentally turn a same-day pair into NONSTRICT.
-    #
-    # Same day       -> STRICT
-    # Different day  -> NONSTRICT
-    #
-    # Similar/different start time is only a subtype.
-    # Route validation and distance rules below remain unchanged.
+    # Preserve the STRICT/NONSTRICT decision made by candidate_pairing.py.
+    # This stage is responsible for route/common-section validation and must
+    # not replace the upstream temporal/endpoint classification with a new
+    # calendar-day-only rule.
     # ------------------------------------------------------------
     derived_pair_class, derived_category = _derive_intercity_pair_class_and_category(
         candidate

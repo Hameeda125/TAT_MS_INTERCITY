@@ -21,7 +21,9 @@ def load_config(config_path=DEFAULT_CONFIG_PATH):
         config = yaml.safe_load(file)
 
     if not isinstance(config, dict):
-        raise ValueError("The configuration file is empty or invalid.")
+        raise ValueError(
+            "The configuration file is empty or invalid."
+        )
 
     required_sections = [
         "project",
@@ -56,8 +58,14 @@ if __name__ == "__main__":
     settings = load_config()
 
     print("Configuration loaded successfully")
-    print(f"Input folder: {settings['project']['input_folder']}")
-    print(f"Results folder: {settings['project']['results_folder']}")
+    print(
+        f"Input folder: "
+        f"{settings['project']['input_folder']}"
+    )
+    print(
+        f"Results folder: "
+        f"{settings['project']['results_folder']}"
+    )
     print(
         "Inching speed range: "
         f"{settings['phases']['inching_min_speed_kmh']} to "

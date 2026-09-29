@@ -37,11 +37,12 @@ from trip_metadata import (
 
 
 DEFAULT_TRIP_LOG_PATH = Path(
-    r"C:\Users\JAVED\Downloads\TAT Data Collection – Trip Log_Cleaned.xlsx"
+    r"D:\TAT_Project\TAT Data Collection Intercity.xlsx"
 )
 TRIP_LOG_SHEET_NAME = "Sheet1"
 VERIFIED_INDEX_FILE_NAME = "verified_trip_index.csv"
 AUDIT_FILE_NAME = "Trip_Log_Reconciliation.xlsx"
+SCRIPT_VERSION = "2026-09-29_RECONCILIATION_V3_INDEX_FRESHNESS_PACKET_TIME"
 
 REQUIRED_INDEX_COLUMNS = {
     "trip_id",
@@ -114,6 +115,12 @@ LOCATION_ALIASES = {
     "avrroundana": "avrroundanasalem",
     "salem": "avrroundanasalem",
     "chennai": "chennai",
+    "bangalore": "bangalore",
+    "bengaluru": "bangalore",
+    "banglore": "bangalore",
+    "madiwala": "madiwala",
+    "lalbag": "lalbag",
+    "lalbagh": "lalbag",
 }
 
 OPTIONAL_DISTANCE_COLUMNS = [
@@ -574,18 +581,25 @@ def _datetime_candidates(log_date, clock_seconds, explicit_date=None):
     if log_date is None or clock_seconds is None or pd.isna(clock_seconds):
         return []
     base_date = explicit_date or log_date
-    hour = int(clock_seconds // 3600)
-    twelve_hour_offsets = [0, 12 * 3600] if hour < 12 else [0]
+    # Manual field logs can occasionally contain a 12-hour AM/PM
+    # transcription offset. Test both the written clock and its 12-hour
+    # counterpart, then let the actual Packet-Time telemetry select the
+    # interpretation with real sample support.
+    clock_value = float(clock_seconds) % 86_400.0
+    clock_variants = {
+        clock_value,
+        (clock_value + 12 * 3600.0) % 86_400.0,
+    }
+
     day_offsets = [0] if explicit_date else [-1, 0, 1]
     candidates = set()
     for day_offset in day_offsets:
         day_value = base_date + timedelta(days=day_offset)
         midnight = datetime.combine(day_value, time.min)
-        for seconds_offset in twelve_hour_offsets:
+        for variant_seconds in clock_variants:
             candidates.add(
                 pd.Timestamp(
-                    midnight
-                    + timedelta(seconds=float(clock_seconds) + seconds_offset)
+                    midnight + timedelta(seconds=variant_seconds)
                 )
             )
     return sorted(candidates)
@@ -1086,11 +1100,27 @@ def _activity_blocks(telemetry, rules):
     for index in range(1, len(telemetry)):
         seconds = (timestamps.iloc[index] - timestamps.iloc[index - 1]).total_seconds()
         distance = distances[index]
-        implied = distance / seconds * 3600.0 if seconds > 0 else float("inf")
-        should_break = seconds <= 0
-        should_break |= seconds > hard_gap
-        should_break |= seconds > continuity_gap and distance > 0.2
-        should_break |= implied > maximum_speed and distance > 0.5
+
+        # Timestamp is the cleaned telemetry timestamp derived from the source
+        # Packet Time. Actual Received Time is not used for trip-boundary logic.
+        #
+        # A repeated Packet Time (seconds == 0) can occur when the device emits
+        # duplicate/near-duplicate records. Do not split one continuous trip
+        # merely because two consecutive packets share the same Packet Time.
+        # A true backward time jump (seconds < 0) is still treated as a break.
+        if seconds < 0:
+            should_break = True
+            implied = float("inf")
+        elif seconds == 0:
+            should_break = False
+            implied = 0.0
+        else:
+            implied = distance / seconds * 3600.0
+            should_break = False
+            should_break |= seconds > hard_gap
+            should_break |= seconds > continuity_gap and distance > 0.2
+            should_break |= implied > maximum_speed and distance > 0.5
+
         if should_break:
             breaks.append(index)
     breaks.append(len(telemetry))
@@ -1455,6 +1485,120 @@ def _trip_log_path_from_config(config):
     return Path(configured) if configured else DEFAULT_TRIP_LOG_PATH
 
 
+def _normalise_relative_path(value):
+    """Return a stable case-insensitive relative-path comparison key."""
+
+    text_value = str(value or "").strip().replace("\\", "/")
+    while text_value.startswith("./"):
+        text_value = text_value[2:]
+    return text_value.casefold()
+
+
+def _discover_current_input_files(config):
+    """Discover current raw telemetry workbooks without depending on Git state."""
+
+    input_root = Path(config["project"]["input_folder"])
+    if not input_root.exists():
+        raise FileNotFoundError(f"Configured input folder was not found: {input_root}")
+    if not input_root.is_dir():
+        raise NotADirectoryError(f"Configured input folder is not a directory: {input_root}")
+
+    configured_extensions = config.get("files", {}).get(
+        "accepted_extensions", [".xlsx"]
+    )
+    extensions = {
+        str(extension).strip().casefold()
+        if str(extension).strip().startswith(".")
+        else "." + str(extension).strip().casefold()
+        for extension in configured_extensions
+        if str(extension).strip()
+    }
+    if not extensions:
+        extensions = {".xlsx"}
+
+    records = []
+    for path in sorted(
+        input_root.rglob("*"),
+        key=lambda item: str(item).casefold(),
+    ):
+        if not path.is_file():
+            continue
+        if path.name.startswith("~$"):
+            continue
+        if path.suffix.casefold() not in extensions:
+            continue
+        records.append(
+            {
+                "input_file_path": str(path.resolve()),
+                "input_relative_path": str(path.relative_to(input_root)),
+                "input_relative_key": _normalise_relative_path(
+                    path.relative_to(input_root)
+                ),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+def _check_trip_index_freshness(config, indexed_trips):
+    """Compare current Data/Input workbooks with the persisted trip index."""
+
+    input_files = _discover_current_input_files(config)
+    if input_files.empty:
+        return {
+            "input_file_count": 0,
+            "indexed_file_count": len(indexed_trips),
+            "raw_not_indexed": pd.DataFrame(),
+            "indexed_without_raw": pd.DataFrame(),
+        }
+
+    indexed_keys = {
+        _normalise_relative_path(value)
+        for value in indexed_trips.get("relative_path", pd.Series(dtype=str))
+        .dropna()
+        .astype(str)
+    }
+    raw_keys = set(input_files["input_relative_key"].astype(str))
+
+    raw_not_indexed = input_files.loc[
+        ~input_files["input_relative_key"].isin(indexed_keys)
+    ].copy()
+
+    indexed_without_raw = indexed_trips.loc[
+        ~indexed_trips["relative_path"]
+        .astype(str)
+        .map(_normalise_relative_path)
+        .isin(raw_keys)
+    ].copy()
+
+    return {
+        "input_file_count": len(input_files),
+        "indexed_file_count": len(indexed_trips),
+        "raw_not_indexed": raw_not_indexed,
+        "indexed_without_raw": indexed_without_raw,
+    }
+
+
+def _format_stale_index_error(freshness):
+    missing = freshness["raw_not_indexed"]
+    lines = [
+        "trip_index.csv is stale relative to Data/Input.",
+        f"Current raw input workbooks: {freshness['input_file_count']}",
+        f"Files currently present in trip_index.csv: {freshness['indexed_file_count']}",
+    ]
+    if not missing.empty:
+        lines.append("Raw input workbook(s) not yet indexed:")
+        for relative_path in missing["input_relative_path"].astype(str).tolist():
+            lines.append(f"  - {relative_path}")
+    lines.extend(
+        [
+            "Run these stages before reconciliation:",
+            "  python .\\TAT_MS_INTERCITY_PIPELINE\\src\\cleaned_file_writer.py",
+            "  python .\\TAT_MS_INTERCITY_PIPELINE\\src\\trip_index.py",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _rules_from_config(config):
     configured = config.get("reconciliation", {})
     defaults = {
@@ -1463,7 +1607,7 @@ def _rules_from_config(config):
         "minimum_match_score": 100.0,
         "high_confidence_assignment_margin": 10.0,
         "low_confidence_assignment_margin": 2.0,
-        "maximum_boundary_sample_offset_minutes": 10.0,
+        "maximum_boundary_sample_offset_minutes": 20.0,
         "minimum_verified_points": 2,
         "minimum_verified_distance_km": 0.05,
         "maximum_verified_duration_hours": 30.0,
@@ -1559,8 +1703,11 @@ def _rules_table(rules, trip_log_path):
             {"Rule": "Source-file assignment", "Value": "Exactly one log row per file", "Purpose": "Prevent source reuse or file splitting"},
             {"Rule": "Maximum collection-date difference", "Value": rules["maximum_log_date_difference_days"], "Purpose": "Prevent cross-date fabrication"},
             {"Rule": "Minimum route-direction score", "Value": rules["minimum_route_direction_score"], "Purpose": "Require ordered start/end route evidence"},
+            {"Rule": "Telemetry time source", "Value": "Cleaned Timestamp derived from source Packet Time", "Purpose": "Actual Received Time is not used for trip boundaries or movement blocks"},
+            {"Rule": "Repeated Packet Time", "Value": "Does not split a movement block", "Purpose": "Duplicate/near-duplicate packets must not create artificial trip boundaries"},
             {"Rule": "Time use during matching", "Value": "Soft evidence", "Purpose": "Extra device recording cannot exclude the correct file"},
-            {"Rule": "Exact boundary sample offset (minutes)", "Value": rules["maximum_boundary_sample_offset_minutes"], "Purpose": "Use log-anchored cut when samples support it"},
+            {"Rule": "Manual clock interpretation", "Value": "Written time plus 12-hour counterpart", "Purpose": "Resolve AM/PM transcription offsets only when Packet-Time telemetry supports the alternative"},
+            {"Rule": "Exact boundary sample offset (minutes)", "Value": rules["maximum_boundary_sample_offset_minutes"], "Purpose": "Use log-anchored cut when Packet-Time samples support it"},
             {"Rule": "Fallback boundary", "Value": "Best unique movement block", "Purpose": "Resolve AM/PM, clock shifts, extra points, or missing end"},
             {"Rule": "Low speed inside verified boundary", "Value": "Preserved", "Purpose": "Retain stop, idle, congestion, and inching"},
             {"Rule": "Original/cleaned telemetry", "Value": "Never overwritten", "Purpose": "Preserve research-data lineage"},
@@ -1638,6 +1785,11 @@ def reconcile_trip_log(config, trip_log_path=None):
     verified_index_path, audit_path = _output_paths(config)
 
     indexed_trips = load_file_trip_index(index_path)
+
+    freshness = _check_trip_index_freshness(config, indexed_trips)
+    if not freshness["raw_not_indexed"].empty:
+        raise RuntimeError(_format_stale_index_error(freshness))
+
     log_records = load_trip_log(trip_log_path)
     selected_matches, unmatched_log = match_log_rows_to_indexed_files(
         indexed_trips, log_records, rules
@@ -1721,6 +1873,50 @@ def reconcile_trip_log(config, trip_log_path=None):
         "verified_index_path": str(verified_index_path),
         "audit_path": str(audit_path),
         "trip_log_path": str(trip_log_path),
+        "data_check_details": (
+            data_check[
+                [
+                    "source_file_name",
+                    "log_excel_row",
+                    "log_date",
+                    "log_start_location",
+                    "log_end_location",
+                    "resolved_log_start",
+                    "resolved_log_end",
+                    "raw_first_timestamp",
+                    "raw_last_timestamp",
+                    "start_sample_offset_seconds",
+                    "end_sample_offset_seconds",
+                    "boundary_method",
+                    "boundary_confidence",
+                    "reconciliation_reason",
+                ]
+            ].to_dict(orient="records")
+            if not data_check.empty
+            else []
+        ),
+        "unmatched_log_details": (
+            unmatched_log[
+                [
+                    column
+                    for column in [
+                        "log_excel_row",
+                        "log_date",
+                        "log_vehicle_type",
+                        "log_start_location",
+                        "log_end_location",
+                        "log_start_time_original",
+                        "log_end_time_original",
+                        "unmatched_reason",
+                        "best_match_score",
+                        "best_source_trip_id",
+                    ]
+                    if column in unmatched_log.columns
+                ]
+            ].to_dict(orient="records")
+            if not unmatched_log.empty
+            else []
+        ),
     }
 
 
@@ -1728,6 +1924,8 @@ if __name__ == "__main__":
     try:
         settings = load_config()
         print("Trip-log reconciliation started")
+        print(f"Script: {Path(__file__).resolve()}")
+        print(f"Version: {SCRIPT_VERSION}")
         result = reconcile_trip_log(settings)
         print("\nTrip-log reconciliation completed")
         print(f"Indexed telemetry files: {result['indexed_files']}")
@@ -1740,6 +1938,50 @@ if __name__ == "__main__":
         print(f"Source files assigned more than once: {result['duplicate_source_assignments']}")
         print(f"Verified trip index: {result['verified_index_path']}")
         print(f"Reconciliation audit: {result['audit_path']}")
+
+        if result["data_check_details"]:
+            print("\nDATA CHECK REQUIRED - EXACT TRIP(S)")
+            for item in result["data_check_details"]:
+                print(
+                    "  "
+                    f"Log row {item.get('log_excel_row')} | "
+                    f"{item.get('log_date')} | "
+                    f"{item.get('log_start_location')} -> {item.get('log_end_location')} | "
+                    f"{item.get('source_file_name')}"
+                )
+                print(
+                    "    "
+                    f"Resolved log window: {item.get('resolved_log_start')} -> "
+                    f"{item.get('resolved_log_end')}"
+                )
+                print(
+                    "    "
+                    f"Telemetry window: {item.get('raw_first_timestamp')} -> "
+                    f"{item.get('raw_last_timestamp')}"
+                )
+                print(
+                    "    "
+                    f"Boundary offsets (s): start={item.get('start_sample_offset_seconds')} | "
+                    f"end={item.get('end_sample_offset_seconds')}"
+                )
+                print(
+                    "    "
+                    f"Method/confidence: {item.get('boundary_method')} / "
+                    f"{item.get('boundary_confidence')}"
+                )
+                print(f"    Reason: {item.get('reconciliation_reason')}")
+
+        if result["unmatched_log_details"]:
+            print("\nTRIP-LOG ROWS WITHOUT A UNIQUE FILE")
+            for item in result["unmatched_log_details"]:
+                print(
+                    "  "
+                    f"Log row {item.get('log_excel_row')} | "
+                    f"{item.get('log_date')} | "
+                    f"{item.get('log_vehicle_type')} | "
+                    f"{item.get('log_start_location')} -> {item.get('log_end_location')} | "
+                    f"{item.get('unmatched_reason')}"
+                )
     except Exception as error:
         print(f"\nTRIP-LOG RECONCILIATION FAILED | {error}")
         raise SystemExit(1)

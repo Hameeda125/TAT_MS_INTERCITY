@@ -137,7 +137,7 @@ from openpyxl.utils import get_column_letter
 # ============================================================================
 
 RESULTS_ROOT = Path(
-    r"D:\TAT_MS_INTERCITY\Data\Results"
+    r"D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results"
 )
 
 PAIRED_ROOT = (
@@ -4353,7 +4353,7 @@ def main() -> None:
             print(
                 "    COMPLETED | "
                 f"{record.category} | "
-                f"{record.route_group}"
+                f"{record.route_group.replace('↔', '<->')}"
             )
 
         except Exception as error:

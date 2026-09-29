@@ -1,7 +1,7 @@
 project:
-  input_folder: "D:/TAT_MS_INTERCITY/Data/Input"
-  results_folder: "D:/TAT_MS_INTERCITY/Data/Results"
-  backup_folder: "D:/TAT_MS_INTERCITY/Data/Backups"
+  input_folder: "D:/Hameeda_Projects/TAT_MS_INTERCITY/Data/Input"
+  results_folder: "D:/Hameeda_Projects/TAT_MS_INTERCITY/Data/Results"
+  backup_folder: "D:/Hameeda_Projects/TAT_MS_INTERCITY/Data/Results/Backups"
   master_report: "All_Trips_Master_Report.xlsx"
 
 files:
@@ -40,7 +40,7 @@ pairing:
   require_same_route: true
   strict_pair_same_day: true
   strict_pair_similar_start_time: true
-  strict_start_time_tolerance_minutes: 30
+  strict_start_time_tolerance_minutes: 120
   allow_non_strict_pairs: true
 
 cropping:

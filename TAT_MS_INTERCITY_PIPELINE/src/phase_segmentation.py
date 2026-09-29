@@ -60,14 +60,18 @@ path remains valid even when small GPS jitter makes gap-equivalent speed exceed
 B. Phase rules
 --------------
 Priority 1 - CHARGING / REFUELING
-    Telemetry-only test: duration > 20 min -> CHARGING / REFUELING
-    No manual log or station evidence is used in this test.
+    Manual charging/refuelling evidence is applied first. An explicit manual
+    start+duration window reserves every overlapping positive telemetry interval.
+    Otherwise, compatible stationary/device-gap telemetry is matched within the
+    existing manual-event tolerance. Automatic replenishment requires charge-zone
+    evidence; a long telemetry gap alone is NOT charging/refuelling.
 
     Charge-zone evidence comes from either telemetry station/operator text or
     the charging location in the matched manual record.
 
 Priority 2 - STOP
-    INTERCITY telemetry-only test: > 3 min and <= 20 min -> STOP
+    INTERCITY: qualifying stationary duration > 180 s -> STOP unless already
+    reserved as CHARGING/REFUELING.
 
 
     Gap-equivalent speed remains an audit/confidence signal. It is not the
@@ -123,7 +127,7 @@ mobile zero-speed rules still run for all stops missing from the manual log.
 D. Manual charging/refuelling
 -----------------------------
 Primary manual trip log:
-    C:/Users/JAVED/Downloads/TAT Data Collection – Trip Log_Cleaned.xlsx
+    MANUAL_TRIP_LOG_PATH below (currently D:/My Desktop/TAT Data Collection Intercity.xlsx)
 
 The path can also be supplied through the TAT_MANUAL_TRIP_LOG environment
 variable when the workbook is intentionally moved. The script does not use a
@@ -271,19 +275,19 @@ from openpyxl.utils import get_column_letter
 # PROJECT PATHS
 # ============================================================================
 
-PAIRED_ROOT = Path(r"D:\TAT_MS_INTERCITY\Data\Results\Paired")
+PAIRED_ROOT = Path(r"D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Paired")
 
-# The user's maintained manual log is authoritative. An environment-variable
-# override is available for an intentional future move, but the script never
-# silently substitutes an older project copy.
+# The maintained manual log is authoritative for manual event evidence. An
+# environment-variable override is available for an intentional future move,
+# but the script never silently substitutes another workbook.
 MANUAL_TRIP_LOG_PATH = Path(
     os.environ.get(
         "TAT_MANUAL_TRIP_LOG",
-        r"D:\My Desktop\TAT Data Collection Intercity.xlsx",
+        r"D:\TAT_Project\TAT Data Collection Intercity.xlsx",
     )
 )
 
-SYSTEM_OUTPUT_DIR = Path(r"D:\TAT_MS_INTERCITY\Data\Results\System")
+SYSTEM_OUTPUT_DIR = Path(r"D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System")
 
 # Optional safety filter.
 # Leave as None to process all pair workbooks.
@@ -301,7 +305,7 @@ MANUAL_EVENT_AUDIT_SHEET = "08_Manual_Event_Matching"
 CHARGING_DETAILS_SHEET = "charging time details"
 
 GLOBAL_LOG_NAME = "phase_segmentation_revised_log.xlsx"
-SCRIPT_VERSION = f"{datetime.now():%Y-%m-%d}_INTERCITY_TELEMETRY_ONLY_V3"
+SCRIPT_VERSION = f"{datetime.now():%Y-%m-%d}_INTERCITY_MANUAL_FIRST_HYBRID_V5_TIMEDELTA_FIX"
 
 
 # ============================================================================
@@ -567,6 +571,181 @@ def clean_text(value: Any) -> str:
     return str(value).strip()
 
 
+def parse_datetime_value(value: Any) -> pd.Timestamp | None:
+    """Parse one datetime without swapping month/day in ISO-style dates."""
+    if value is None:
+        return None
+
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(value, (pd.Timestamp, datetime)):
+        timestamp = pd.Timestamp(value)
+        return None if pd.isna(timestamp) else timestamp
+
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        number = float(value)
+        if math.isfinite(number) and 20_000 <= number <= 80_000:
+            return pd.Timestamp("1899-12-30") + pd.to_timedelta(number, unit="D")
+
+    raw = clean_text(value)
+    if not raw:
+        return None
+
+    iso_style = bool(re.match(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]|$)", raw))
+
+    try:
+        parsed = pd.to_datetime(
+            raw,
+            errors="coerce",
+            yearfirst=iso_style,
+            dayfirst=not iso_style,
+            format="mixed",
+        )
+    except (TypeError, ValueError):
+        parsed = pd.to_datetime(
+            raw,
+            errors="coerce",
+            yearfirst=iso_style,
+            dayfirst=not iso_style,
+        )
+
+    return None if pd.isna(parsed) else pd.Timestamp(parsed)
+
+
+def parse_datetime_series(series: pd.Series) -> pd.Series:
+    """Parse telemetry timestamps with ISO-safe and DD-MM-YYYY-safe rules."""
+    if pd.api.types.is_datetime64_any_dtype(series.dtype):
+        return pd.to_datetime(series, errors="coerce")
+
+    result = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
+    numeric = pd.to_numeric(series, errors="coerce")
+    excel_serial = numeric.between(20_000, 80_000, inclusive="both")
+
+    if bool(excel_serial.any()):
+        result.loc[excel_serial] = pd.to_datetime(
+            numeric.loc[excel_serial],
+            unit="D",
+            origin="1899-12-30",
+            errors="coerce",
+        )
+
+    raw = series.astype("string").str.strip()
+    unresolved = result.isna() & series.notna() & raw.ne("")
+    iso_style = unresolved & raw.str.match(
+        r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]|$)",
+        na=False,
+    )
+
+    if bool(iso_style.any()):
+        try:
+            parsed_iso = pd.to_datetime(
+                series.loc[iso_style],
+                errors="coerce",
+                yearfirst=True,
+                dayfirst=False,
+                format="mixed",
+            )
+        except (TypeError, ValueError):
+            parsed_iso = pd.to_datetime(
+                series.loc[iso_style],
+                errors="coerce",
+                yearfirst=True,
+                dayfirst=False,
+            )
+        result.loc[iso_style] = parsed_iso
+
+    unresolved = result.isna() & series.notna() & raw.ne("")
+    if bool(unresolved.any()):
+        try:
+            parsed_dayfirst = pd.to_datetime(
+                series.loc[unresolved],
+                errors="coerce",
+                dayfirst=True,
+                format="mixed",
+            )
+        except (TypeError, ValueError):
+            parsed_dayfirst = pd.to_datetime(
+                series.loc[unresolved],
+                errors="coerce",
+                dayfirst=True,
+            )
+        result.loc[unresolved] = parsed_dayfirst
+
+    unresolved = result.isna() & series.notna() & raw.ne("")
+    if bool(unresolved.any()):
+        try:
+            parsed_fallback = pd.to_datetime(
+                series.loc[unresolved],
+                errors="coerce",
+                dayfirst=False,
+                format="mixed",
+            )
+        except (TypeError, ValueError):
+            parsed_fallback = pd.to_datetime(
+                series.loc[unresolved],
+                errors="coerce",
+                dayfirst=False,
+            )
+        result.loc[unresolved] = parsed_fallback
+
+    return result
+
+
+def concat_frames_without_futurewarning(
+    frames: Iterable[pd.DataFrame | None],
+) -> pd.DataFrame:
+    """Concatenate audit frames without pandas empty/all-NA concat warnings."""
+    usable = [
+        frame.copy()
+        for frame in frames
+        if frame is not None and not frame.empty
+    ]
+
+    if not usable:
+        return pd.DataFrame()
+
+    columns: list[str] = []
+    for frame in usable:
+        for column in frame.columns:
+            if column not in columns:
+                columns.append(column)
+
+    trimmed = [frame.dropna(axis=1, how="all") for frame in usable]
+    combined = pd.concat(trimmed, ignore_index=True, sort=False)
+    return combined.reindex(columns=columns)
+
+
+def safe_timedelta(
+    *,
+    days: float = 0.0,
+    hours: float = 0.0,
+    minutes: float = 0.0,
+    seconds: float = 0.0,
+) -> pd.Timedelta:
+    """Return a unit-explicit pandas Timedelta.
+
+    NumPy has deprecated its old generic timedelta unit.  Building every
+    duration as an explicit number of seconds avoids that warning and keeps
+    the arithmetic unchanged.
+    """
+
+    total_seconds = (
+        float(days) * 86400.0
+        + float(hours) * 3600.0
+        + float(minutes) * 60.0
+        + float(seconds)
+    )
+
+    return pd.to_timedelta(
+        total_seconds,
+        unit="s",
+    )
+
+
 def normalise_text(value: Any) -> str:
     text = clean_text(value).casefold()
     text = re.sub(r"[_\-]+", " ", text)
@@ -636,16 +815,8 @@ def vehicle_type(value: Any) -> str:
 
 
 def parse_date(value: Any) -> pd.Timestamp | None:
-    parsed = pd.to_datetime(
-        value,
-        errors="coerce",
-        dayfirst=True,
-    )
-
-    if pd.isna(parsed):
-        return None
-
-    return pd.Timestamp(parsed).normalize()
+    parsed = parse_datetime_value(value)
+    return None if parsed is None else parsed.normalize()
 
 
 def excel_serial_to_timestamp(value: Any) -> pd.Timestamp | None:
@@ -661,16 +832,7 @@ def excel_serial_to_timestamp(value: Any) -> pd.Timestamp | None:
     try:
         number = float(value)
     except (TypeError, ValueError):
-        parsed = pd.to_datetime(
-            value,
-            errors="coerce",
-            dayfirst=True,
-        )
-        return (
-            None
-            if pd.isna(parsed)
-            else pd.Timestamp(parsed)
-        )
+        return parse_datetime_value(value)
 
     if not math.isfinite(number):
         return None
@@ -941,10 +1103,8 @@ def pair_vehicle_context(
         )
     )
 
-    fallback_times = pd.to_datetime(
-        fallback_frame[TIMESTAMP],
-        errors="coerce",
-        dayfirst=True,
+    fallback_times = parse_datetime_series(
+        fallback_frame[TIMESTAMP]
     ).dropna()
 
     if source_trip_start is None and not fallback_times.empty:
@@ -1180,7 +1340,7 @@ def resolve_manual_start_time(
 
     base = (
         pd.Timestamp(date)
-        + pd.Timedelta(
+        + safe_timedelta(
             hours=hour,
             minutes=minute,
             seconds=second,
@@ -1192,9 +1352,9 @@ def resolve_manual_start_time(
 
     candidates = [
         base,
-        base + pd.Timedelta(hours=12),
-        base - pd.Timedelta(hours=12),
-        base + pd.Timedelta(days=1),
+        base + safe_timedelta(hours=12),
+        base - safe_timedelta(hours=12),
+        base + safe_timedelta(days=1),
     ]
 
     if context.source_trip_start is not None:
@@ -1230,13 +1390,11 @@ def resolve_manual_end_time(
         return None
 
     # Sometimes the end cell includes a date in parentheses.
-    full_parsed = pd.to_datetime(
-        clean_text(raw_end),
-        errors="coerce",
-        dayfirst=True,
+    full_parsed = parse_datetime_value(
+        clean_text(raw_end)
     )
 
-    if pd.notna(full_parsed):
+    if full_parsed is not None:
         parsed_timestamp = pd.Timestamp(
             full_parsed
         )
@@ -1261,7 +1419,7 @@ def resolve_manual_end_time(
 
     base = (
         pd.Timestamp(date)
-        + pd.Timedelta(
+        + safe_timedelta(
             hours=hour,
             minutes=minute,
             seconds=second,
@@ -1271,14 +1429,14 @@ def resolve_manual_end_time(
     if ampm:
         candidates = [
             base,
-            base + pd.Timedelta(days=1),
+            base + safe_timedelta(days=1),
         ]
     else:
         candidates = [
             base,
-            base + pd.Timedelta(hours=12),
-            base + pd.Timedelta(days=1),
-            base + pd.Timedelta(days=1, hours=12),
+            base + safe_timedelta(hours=12),
+            base + safe_timedelta(days=1),
+            base + safe_timedelta(days=1, hours=12),
         ]
 
     if manual_start is None:
@@ -1486,7 +1644,7 @@ def resolve_event_clock(
 
     base = (
         pd.Timestamp(date)
-        + pd.Timedelta(
+        + safe_timedelta(
             hours=hour,
             minutes=minute,
             seconds=second,
@@ -1496,14 +1654,14 @@ def resolve_event_clock(
     if ampm:
         candidates = [
             base,
-            base + pd.Timedelta(days=1),
+            base + safe_timedelta(days=1),
         ]
     else:
         candidates = [
             base,
-            base + pd.Timedelta(hours=12),
-            base + pd.Timedelta(days=1),
-            base + pd.Timedelta(days=1, hours=12),
+            base + safe_timedelta(hours=12),
+            base + safe_timedelta(days=1),
+            base + safe_timedelta(days=1, hours=12),
         ]
 
     if (
@@ -1514,10 +1672,10 @@ def resolve_event_clock(
             candidate
             for candidate in candidates
             if manual_start
-            - pd.Timedelta(minutes=30)
+            - safe_timedelta(minutes=30)
             <= candidate
             <= manual_end
-            + pd.Timedelta(minutes=30)
+            + safe_timedelta(minutes=30)
         ]
 
         if inside:
@@ -1667,12 +1825,12 @@ def extract_manual_stop_events(
                 and finish < start
             ):
                 # Try 12-hour ambiguity first, then next day.
-                finish += pd.Timedelta(
+                finish += safe_timedelta(
                     hours=12
                 )
 
                 if finish < start:
-                    finish += pd.Timedelta(
+                    finish += safe_timedelta(
                         hours=12
                     )
 
@@ -1750,12 +1908,12 @@ def extract_manual_stop_events(
                 and finish is not None
                 and finish < start
             ):
-                finish += pd.Timedelta(
+                finish += safe_timedelta(
                     hours=12
                 )
 
                 if finish < start:
-                    finish += pd.Timedelta(
+                    finish += safe_timedelta(
                         hours=12
                     )
 
@@ -2065,7 +2223,7 @@ def extract_manual_replenishment_event(
 
         event_end = (
             event_start
-            + pd.Timedelta(
+            + safe_timedelta(
                 seconds=duration_seconds
             )
             if (
@@ -2199,7 +2357,7 @@ def extract_manual_replenishment_event(
 
     event_end = (
         event_start
-        + pd.Timedelta(
+        + safe_timedelta(
             seconds=duration_seconds
         )
         if (
@@ -2295,10 +2453,8 @@ def prepare_telemetry(
 
     frame = source.copy()
 
-    frame[TIMESTAMP] = pd.to_datetime(
-        frame[TIMESTAMP],
-        errors="coerce",
-        dayfirst=True,
+    frame[TIMESTAMP] = parse_datetime_series(
+        frame[TIMESTAMP]
     )
 
     for column in (
@@ -2471,6 +2627,76 @@ def manual_event_overlap_mask(
     return (
         overlap
         & positive
+    )
+
+
+def event_match_from_rows(
+    frame: pd.DataFrame,
+    event: ManualEvent,
+    rows: np.ndarray,
+    method: str,
+    station_evidence: np.ndarray,
+    notes: str,
+) -> EventMatch:
+    """Build one audit record for a manual event applied to one or more rows."""
+    rows = np.asarray(rows, dtype=int)
+    if len(rows) == 0:
+        raise ValueError("event_match_from_rows requires at least one telemetry row")
+
+    starts = interval_start_times(frame)
+    first = int(rows[0])
+    last = int(rows[-1])
+    gap = pd.to_numeric(frame[TIME_GAP], errors="coerce").to_numpy(dtype=float)
+    distance = pd.to_numeric(frame[DISTANCE], errors="coerce").to_numpy(dtype=float)
+
+    total_gap = float(np.nansum(gap[rows]))
+    total_distance = float(np.nansum(distance[rows]))
+    aggregate_speed = (
+        total_distance / total_gap * 3.6
+        if total_gap > 0
+        else None
+    )
+
+    interval_start = (
+        pd.Timestamp(starts.iloc[first])
+        if pd.notna(starts.iloc[first])
+        else None
+    )
+    interval_end = (
+        pd.Timestamp(frame.at[last, TIMESTAMP])
+        if pd.notna(frame.at[last, TIMESTAMP])
+        else None
+    )
+
+    offset = None
+    if event.start is not None and interval_start is not None and interval_end is not None:
+        direct, computed_offset = candidate_time_offset(
+            event, interval_start, interval_end
+        )
+        offset = 0.0 if direct else float(computed_offset)
+
+    return EventMatch(
+        vehicle=event.vehicle,
+        event_kind=event.event_kind,
+        event_index=event.event_index,
+        manual_start=event.start,
+        manual_end=event.end,
+        manual_duration_seconds=event.duration_seconds,
+        manual_location=event.location,
+        raw_text=event.raw_text,
+        match_status="MATCHED",
+        match_method=method,
+        telemetry_row_index=first,
+        excel_row=first + 2,
+        interval_start=interval_start,
+        interval_end=interval_end,
+        telemetry_gap_seconds=total_gap,
+        telemetry_distance_m=total_distance,
+        gap_equivalent_speed_kmh=aggregate_speed,
+        time_offset_seconds=offset,
+        boundary_flag=bool(boundary_mask(len(frame))[rows].any()),
+        address_station_evidence=bool(station_evidence[rows].any()),
+        notes=notes,
     )
 
 
@@ -4170,54 +4396,13 @@ def segment_vehicle(
 
     used_manual_rows: set[int] = set()
 
-    # TELEMETRY-ONLY TEST MODE: manual-event support arrays are intentionally
-    # disabled. They remain defined as zero/empty placeholders because the
-    # downstream audit/output schema still contains the historical columns.
+    # Manual-first / telemetry-fallback segmentation state.
     unsupported_boundary_stop = np.zeros(len(frame), dtype=bool)
     manual_source_conflict = np.zeros(len(frame), dtype=bool)
     zero_episode_replenishment = np.zeros(len(frame), dtype=bool)
     mobile_episode_stop = np.zeros(len(frame), dtype=bool)
     mobile_episode_idle = np.zeros(len(frame), dtype=bool)
-    stop_events: list[Any] = []
     high_implied_speed_stop = np.zeros(len(frame), dtype=bool)
-
-    # ------------------------------------------------------------------
-    # TELEMETRY-ONLY TEST MODE
-    # ------------------------------------------------------------------
-    # For this test, the manual trip log is intentionally NOT used.
-    # All manual-event matching code remains in the file elsewhere for
-    # future use, but it is disabled in this segmentation pass.
-    #
-    # INTERCITY stationary-duration rules requested for this test:
-    #
-    #     duration <= 3 min         -> IDLE
-    #     duration > 3 and <= 20 min -> STOP
-    #     duration > 20 min         -> CHARGING / REFUELING
-    #
-    # Boundary convention used here:
-    #     <= 3 min                  -> IDLE
-    #     > 3 and <= 20 min         -> STOP
-    #     > 20 min                  -> CHARGING / REFUELING
-    #
-    # For dense recorded-zero telemetry, the COMPLETE consecutive zero-speed
-    # episode duration is used. This prevents a 5-10 second sampling interval
-    # from being treated as a separate event when the vehicle is actually
-    # stationary for several minutes.
-    #
-    # No manual timestamp, manual charging duration, station address, or
-    # manual stop timestamp is used to make the classification below.
-    # ------------------------------------------------------------------
-
-    manual_stop_support[:] = False
-    manual_stop_duration_hint[:] = np.nan
-    manual_stop_start_inferred[:] = False
-    manual_replenishment_support[:] = False
-    manual_matches = []
-    used_manual_rows = set()
-
-    # Requested telemetry-only thresholds.
-    IDLE_THRESHOLD_SECONDS = 3.0 * 60.0
-    CHARGING_THRESHOLD_SECONDS = 20.0 * 60.0
 
     replenishment_phase = (
         "CHARGING"
@@ -4226,31 +4411,209 @@ def segment_vehicle(
     )
 
     # ------------------------------------------------------------------
-    # 1. LONG TELEMETRY GAPS -> CHARGING / REFUELING
+    # 1. MANUAL CHARGING / REFUELLING — HIGHEST PRIORITY
     # ------------------------------------------------------------------
-    # In this experimental rule, a telemetry interval longer than 20 minutes
-    # is classified as replenishment purely from telemetry duration.
-    # GPS displacement, station text, and manual information do NOT veto it.
-    long_replenishment_gap = (
-        positive
-        & np.isfinite(gap)
-        & (gap > CHARGING_THRESHOLD_SECONDS)
+    # A maintained manual start+duration window is authoritative event evidence.
+    # It is applied first so a normal stop cannot later reuse the same rows.
+    if replenishment_event is not None:
+        explicit_replenishment = manual_event_overlap_mask(
+            frame,
+            replenishment_event,
+        )
+
+        if bool(explicit_replenishment.any()):
+            rows = np.flatnonzero(explicit_replenishment).astype(int)
+            manual_replenishment_support[rows] = True
+            phase[rows] = replenishment_phase
+            reason[rows] = "MANUAL_REPLENISHMENT_WINDOW"
+            confidence[rows] = "HIGH_MANUAL_EVENT"
+            used_manual_rows.update(map(int, rows))
+            manual_matches.append(
+                event_match_from_rows(
+                    frame=frame,
+                    event=replenishment_event,
+                    rows=rows,
+                    method="MANUAL_EXPLICIT_REPLENISHMENT_WINDOW",
+                    station_evidence=station_address,
+                    notes=(
+                        "Every positive telemetry interval overlapping the "
+                        "manual charging/refuelling start-duration window was "
+                        "reserved before normal stop matching."
+                    ),
+                )
+            )
+        else:
+            replenishment_eligible = (
+                positive
+                & (
+                    stationary_like
+                    | device_gap_long
+                    | charge_zone_evidence
+                )
+            )
+            replenishment_relaxed = (
+                positive
+                & np.isfinite(gap)
+                & (gap > IDLE_MIN_SECONDS)
+            )
+            match = match_event_to_stationary_gap(
+                frame=frame,
+                event=replenishment_event,
+                eligible_mask=replenishment_eligible,
+                address_station_evidence=station_address,
+                used_rows=used_manual_rows,
+                allow_location_only=True,
+                relaxed_mask=replenishment_relaxed,
+            )
+            manual_matches.append(match)
+
+            if (
+                match.match_status == "MATCHED"
+                and match.telemetry_row_index is not None
+            ):
+                row = int(match.telemetry_row_index)
+                manual_replenishment_support[row] = True
+                phase[row] = replenishment_phase
+                reason[row] = "MANUAL_REPLENISHMENT_EVENT_MATCH"
+                confidence[row] = "HIGH_MANUAL_EVENT"
+                used_manual_rows.add(row)
+
+    # ------------------------------------------------------------------
+    # 2. MANUAL NORMAL STOPS — AFTER REPLENISHMENT RESERVATION
+    # ------------------------------------------------------------------
+    stop_events = extract_manual_stop_events(
+        manual_record,
+        context,
     )
 
-    phase[long_replenishment_gap] = replenishment_phase
-    reason[long_replenishment_gap] = (
-        "TELEMETRY_GAP>20MIN"
-    )
-    confidence[long_replenishment_gap] = (
-        "TELEMETRY_ONLY_DURATION_RULE"
-    )
+    for event in stop_events:
+        if event.is_interval and event.start is not None and event.end is not None:
+            overlap = manual_event_overlap_mask(frame, event)
+            conflicts = overlap & manual_replenishment_support
+            manual_source_conflict |= conflicts
+
+            available_overlap = overlap.copy()
+            if used_manual_rows:
+                for used_row in used_manual_rows:
+                    if 0 <= used_row < len(available_overlap):
+                        available_overlap[used_row] = False
+
+            if bool(available_overlap.any()):
+                rows = np.flatnonzero(available_overlap).astype(int)
+                observed_duration = float(np.nansum(gap[rows]))
+                event_duration = (
+                    float(event.duration_seconds)
+                    if event.duration_seconds is not None
+                    and math.isfinite(event.duration_seconds)
+                    else observed_duration
+                )
+                stop_phase = (
+                    "STOP"
+                    if event_duration > stop_threshold_seconds
+                    else "IDLE"
+                )
+                manual_stop_support[rows] = True
+                manual_stop_duration_hint[rows] = event_duration
+                phase[rows] = stop_phase
+                reason[rows] = "MANUAL_EXPLICIT_STOP_INTERVAL"
+                confidence[rows] = "HIGH_MANUAL_EVENT"
+                used_manual_rows.update(map(int, rows))
+                manual_matches.append(
+                    event_match_from_rows(
+                        frame=frame,
+                        event=event,
+                        rows=rows,
+                        method="MANUAL_EXPLICIT_STOP_INTERVAL_OVERLAP",
+                        station_evidence=station_address,
+                        notes=(
+                            f"Manual stop interval assigned as {stop_phase}; "
+                            f"duration used={event_duration:.1f} s."
+                        ),
+                    )
+                )
+                continue
+
+            # If the explicit interval does not overlap telemetry exactly, use
+            # the existing +/-15-minute manual-event matcher as a controlled
+            # fallback.
+            match = match_event_to_stationary_gap(
+                frame=frame,
+                event=event,
+                eligible_mask=(
+                    positive
+                    & ~manual_replenishment_support
+                    & (stationary_like | device_gap_long)
+                ),
+                address_station_evidence=station_address,
+                used_rows=used_manual_rows,
+                allow_location_only=False,
+                relaxed_mask=(
+                    positive
+                    & ~manual_replenishment_support
+                    & np.isfinite(gap)
+                    & (gap > IDLE_MIN_SECONDS)
+                ),
+            )
+            manual_matches.append(match)
+
+            if (
+                match.match_status == "MATCHED"
+                and match.telemetry_row_index is not None
+            ):
+                row = int(match.telemetry_row_index)
+                event_duration = (
+                    float(event.duration_seconds)
+                    if event.duration_seconds is not None
+                    and math.isfinite(event.duration_seconds)
+                    else float(gap[row])
+                )
+                stop_phase = (
+                    "STOP"
+                    if event_duration > stop_threshold_seconds
+                    else "IDLE"
+                )
+                manual_stop_support[row] = True
+                manual_stop_duration_hint[row] = event_duration
+                phase[row] = stop_phase
+                reason[row] = "MANUAL_STOP_INTERVAL_MATCH"
+                confidence[row] = "HIGH_MANUAL_EVENT"
+                used_manual_rows.add(row)
+
+        else:
+            match, selected_rows, inferred_duration = infer_point_stop_from_telemetry(
+                frame=frame,
+                event=event,
+                positive=positive,
+                stationary_like=stationary_like,
+                zero_speed_episode_id=zero_speed_episode_id,
+                excluded_rows=manual_replenishment_support,
+                used_rows=used_manual_rows,
+                address_station_evidence=station_address,
+            )
+            manual_matches.append(match)
+
+            if (
+                match.match_status == "MATCHED"
+                and len(selected_rows) > 0
+                and inferred_duration is not None
+            ):
+                stop_phase = (
+                    "STOP"
+                    if inferred_duration > stop_threshold_seconds
+                    else "IDLE"
+                )
+                manual_stop_support[selected_rows] = True
+                manual_stop_start_inferred[selected_rows] = True
+                manual_stop_duration_hint[selected_rows] = inferred_duration
+                phase[selected_rows] = stop_phase
+                reason[selected_rows] = "MANUAL_STOP_START_TELEMETRY_DURATION"
+                confidence[selected_rows] = "HIGH_MANUAL_EVENT_INFERRED_DURATION"
+                used_manual_rows.update(map(int, selected_rows))
+                manual_stop_start_inferred_events += 1
 
     # ------------------------------------------------------------------
-    # 2. COMPLETE RECORDED-ZERO EPISODES
+    # 3. AUTOMATIC RECORDED-ZERO EPISODES (MANUAL EVENTS ALREADY RESERVED)
     # ------------------------------------------------------------------
-    # Dense telemetry can represent a 10-minute stationary event as many
-    # consecutive 5-30 second intervals. Use the cumulative episode duration
-    # rather than classifying each interval independently.
     for run in zero_speed_episodes:
         unassigned = run[phase[run] == ""]
         if len(unassigned) == 0:
@@ -4260,62 +4623,82 @@ def segment_vehicle(
         if not np.isfinite(episode_time):
             continue
 
-        if episode_time > CHARGING_THRESHOLD_SECONDS:
+        station_supported = bool(charge_zone_evidence[run].any())
+
+        if episode_time > stop_threshold_seconds and station_supported:
             phase[unassigned] = replenishment_phase
-            reason[unassigned] = "CUMULATIVE_ZERO_SPEED_EPISODE>20MIN"
-            confidence[unassigned] = "TELEMETRY_ONLY_DURATION_RULE"
-        elif episode_time > IDLE_THRESHOLD_SECONDS:
+            reason[unassigned] = "ZERO_SPEED_EPISODE_LONG + CHARGE_ZONE_EVIDENCE"
+            confidence[unassigned] = "HIGH_TELEMETRY_STATION_EVIDENCE"
+            zero_episode_replenishment[unassigned] = True
+        elif episode_time > stop_threshold_seconds:
             phase[unassigned] = "STOP"
-            reason[unassigned] = "CUMULATIVE_ZERO_SPEED_EPISODE>3MIN<=20MIN"
-            confidence[unassigned] = "TELEMETRY_ONLY_DURATION_RULE"
+            reason[unassigned] = "ZERO_SPEED_EPISODE_DURATION>180S"
+            confidence[unassigned] = "HIGH_TELEMETRY_STATIONARY"
+            mobile_episode_stop[unassigned] = True
         else:
             phase[unassigned] = "IDLE"
-            reason[unassigned] = "CUMULATIVE_ZERO_SPEED_EPISODE<=3MIN"
-            confidence[unassigned] = "TELEMETRY_ONLY_DURATION_RULE"
+            reason[unassigned] = "ZERO_SPEED_EPISODE_DURATION<=180S"
+            confidence[unassigned] = "HIGH_TELEMETRY_STATIONARY"
+            mobile_episode_idle[unassigned] = True
 
     # ------------------------------------------------------------------
-    # 3. SINGLE TELEMETRY GAP -> STOP / IDLE
+    # 4. SPARSE-DEVICE LONG GAPS (>180 s)
     # ------------------------------------------------------------------
-    # For sparse telemetry, the interval's Time Difference is the duration
-    # proxy. A gap >20 min was already assigned above.
     remaining = positive & (phase == "")
+    long_gap = remaining & device_gap_long
 
-    stop_gap = (
-        remaining
-        & np.isfinite(gap)
-        & (gap > IDLE_THRESHOLD_SECONDS)
-        & (gap <= CHARGING_THRESHOLD_SECONDS)
+    automatic_replenishment = long_gap & charge_zone_evidence
+    phase[automatic_replenishment] = replenishment_phase
+    reason[automatic_replenishment] = "LONG_DEVICE_GAP + CHARGE_ZONE_EVIDENCE"
+    confidence[automatic_replenishment] = "HIGH_TELEMETRY_STATION_EVIDENCE"
+
+    remaining_long_gap = long_gap & ~automatic_replenishment
+    unsupported_boundary_stop = remaining_long_gap & boundaries
+    interior_long_stop = remaining_long_gap & ~boundaries
+
+    # Boundary long gaps without manual/station evidence are retained for TAT
+    # but explicitly downgraded instead of being allowed to fall through into a
+    # moving phase solely because the two boundary GPS points are far apart.
+    phase[unsupported_boundary_stop] = "STOP"
+    reason[unsupported_boundary_stop] = "BOUNDARY_STATIONARY_GAP_FALLBACK_STOP"
+    confidence[unsupported_boundary_stop] = "VERY_LOW_BOUNDARY_FALLBACK"
+
+    phase[interior_long_stop] = "STOP"
+    reason[interior_long_stop] = "INTERCITY_DEVICE_GAP>180S"
+    confidence[interior_long_stop] = "HIGH_TELEMETRY_TIME_GAP"
+
+    high_implied_speed_stop = (
+        interior_long_stop
+        & np.isfinite(gap_speed)
+        & (gap_speed >= STATIONARY_GAP_SPEED_KMH)
+    )
+    confidence[high_implied_speed_stop] = "LOW_LONG_GAP_HIGH_IMPLIED_SPEED"
+    reason[high_implied_speed_stop] = (
+        "INTERCITY_DEVICE_GAP>180S + HIGH_IMPLIED_SPEED_REVIEW"
     )
 
-    phase[stop_gap] = "STOP"
-    reason[stop_gap] = "TELEMETRY_GAP>3MIN<=20MIN"
-    confidence[stop_gap] = "TELEMETRY_ONLY_DURATION_RULE"
+    # ------------------------------------------------------------------
+    # 5. REMAINING STATIONARY-LIKE RUNS
+    # ------------------------------------------------------------------
+    # Group consecutive rows so dense telemetry uses cumulative duration.
+    remaining_stationary = positive & (phase == "") & stationary_like
 
-    remaining = positive & (phase == "")
+    for run in consecutive_true_runs(remaining_stationary):
+        episode_time = float(np.nansum(gap[run]))
+        station_supported = bool(charge_zone_evidence[run].any())
 
-    idle_stationary_gap = (
-        remaining
-        & stationary_like
-        & np.isfinite(gap)
-        & (gap <= IDLE_THRESHOLD_SECONDS)
-    )
-
-    phase[idle_stationary_gap] = "IDLE"
-    reason[idle_stationary_gap] = "STATIONARY_TELEMETRY_GAP<=3MIN"
-    confidence[idle_stationary_gap] = "TELEMETRY_ONLY_DURATION_RULE"
-
-    # Any remaining positive-duration stationary-like row is also treated as
-    # IDLE. This is only a completeness fallback and does not use the manual
-    # log.
-    remaining_stationary = (
-        positive
-        & (phase == "")
-        & stationary_like
-    )
-
-    phase[remaining_stationary] = "IDLE"
-    reason[remaining_stationary] = "STATIONARY_TELEMETRY_FALLBACK_IDLE"
-    confidence[remaining_stationary] = "LOW_TELEMETRY_ONLY_FALLBACK"
+        if episode_time > stop_threshold_seconds and station_supported:
+            phase[run] = replenishment_phase
+            reason[run] = "STATIONARY_RUN_LONG + CHARGE_ZONE_EVIDENCE"
+            confidence[run] = "HIGH_TELEMETRY_STATION_EVIDENCE"
+        elif episode_time > stop_threshold_seconds:
+            phase[run] = "STOP"
+            reason[run] = "STATIONARY_RUN_DURATION>180S"
+            confidence[run] = "HIGH_TELEMETRY_STATIONARY"
+        else:
+            phase[run] = "IDLE"
+            reason[run] = "STATIONARY_RUN_DURATION<=180S"
+            confidence[run] = "HIGH_TELEMETRY_STATIONARY"
 
     # ------------------------------------------------------------------
     # 7. PRIMARY INCH FROM DEVICE SPEED
@@ -5093,8 +5476,8 @@ def segment_vehicle(
             }
         )
 
-    # Final telemetry-only replenishment mask used by the historical output
-    # sheets. No manual evidence is involved.
+    # Final replenishment mask after manual-first matching plus telemetry
+    # fallback classification.
     replenishment = phase == replenishment_phase
     zero_episode_replenishment = (
         replenishment
@@ -5538,31 +5921,21 @@ def build_phase_summary(
             }
         )
 
-    summary = pd.DataFrame(
-        rows
-    )
-
-    # Add manual charging duration as an explicit reference, not as a
-    # silent replacement of the telemetry time.
+    # Add manual charging/refuelling duration as an explicit reference row,
+    # not as a silent replacement of telemetry interval time. Build the final
+    # DataFrame only once so pandas never concatenates empty/all-NA columns.
     if not charging_details.empty:
-        reference_rows = []
-
-        for _, row in charging_details.iterrows():
-            reference_rows.append(
+        for _, detail_row in charging_details.iterrows():
+            rows.append(
                 {
-                    "Vehicle": row.get(
-                        "Vehicle"
-                    ),
+                    "Vehicle": detail_row.get("Vehicle"),
                     "Phase": (
                         "MANUAL_CHARGING_TIME_REFERENCE"
-                        if row.get(
-                            "Vehicle"
-                        )
-                        == "EV"
+                        if detail_row.get("Vehicle") == "EV"
                         else "MANUAL_REFUELING_TIME_REFERENCE"
                     ),
                     "Telemetry Time (s)": None,
-                    "Telemetry Time (min)": row.get(
+                    "Telemetry Time (min)": detail_row.get(
                         "Recommended Replenishment Time for TAT (min)"
                     ),
                     "Distance (m)": None,
@@ -5571,17 +5944,7 @@ def build_phase_summary(
                 }
             )
 
-        summary = pd.concat(
-            [
-                summary,
-                pd.DataFrame(
-                    reference_rows
-                ),
-            ],
-            ignore_index=True,
-        )
-
-    return summary
+    return pd.DataFrame(rows)
 
 
 # ============================================================================
@@ -5927,9 +6290,15 @@ def process_pair_workbook(
         workbook_path,
     )
 
-    # TELEMETRY-ONLY TEST: manual log intentionally disabled.
-    ev_manual = None
-    ice_manual = None
+    # Match each vehicle to the authoritative manual trip log.
+    ev_manual = match_manual_record(
+        manual_log,
+        ev_context,
+    )
+    ice_manual = match_manual_record(
+        manual_log,
+        ice_context,
+    )
 
     (
         ev_result,
@@ -5957,12 +6326,11 @@ def process_pair_workbook(
         ice_manual,
     )
 
-    charging_details = pd.concat(
+    charging_details = concat_frames_without_futurewarning(
         [
             ev_charging,
             ice_charging,
-        ],
-        ignore_index=True,
+        ]
     )
 
     summary = build_phase_summary(
@@ -5981,9 +6349,8 @@ def process_pair_workbook(
     ]
 
     classification_audit = (
-        pd.concat(
-            audit_frames,
-            ignore_index=True,
+        concat_frames_without_futurewarning(
+            audit_frames
         )
         if audit_frames
         else pd.DataFrame(
@@ -6031,9 +6398,8 @@ def process_pair_workbook(
     ]
 
     manual_event_audit = (
-        pd.concat(
-            manual_frames,
-            ignore_index=True,
+        concat_frames_without_futurewarning(
+            manual_frames
         )
         if manual_frames
         else pd.DataFrame(
@@ -6230,43 +6596,43 @@ def main() -> None:
         "=" * 88
     )
 
-    print("Manual trip log: DISABLED FOR TELEMETRY-ONLY TEST")
-
-    print(
-        "Telemetry-only INTERCITY rules:"
+    manual_path = resolve_manual_trip_log_path(
+        MANUAL_TRIP_LOG_PATH
+    )
+    manual_log = load_manual_trip_log(
+        manual_path
     )
 
     print(
-        "    <= 3 minutes  -> IDLE"
+        f"Manual trip log: ENABLED | {manual_path}"
     )
-
     print(
-        "    > 3 and <= 20 minutes -> STOP"
+        f"Usable manual trip records loaded: {len(manual_log)}"
     )
-
     print(
-        "    > 20 minutes -> CHARGING (EV) / REFUELING (ICE)"
+        "Manual-first INTERCITY hierarchy:"
     )
-
     print(
-        "    Dense zero-speed episodes use cumulative telemetry duration; "
-        "sparse telemetry uses Time Difference (s)."
+        "    1. Manual charging/refuelling start+duration or matched event has priority"
     )
-
     print(
-        "    Manual log, manual stop timestamps, manual charging fields, "
-        "and manual matching are DISABLED for this test."
+        "    2. Manual stop intervals/start timestamps are matched to telemetry"
     )
-
+    print(
+        "    3. Unmatched stationary telemetry uses the 180 s INTERCITY STOP boundary"
+    )
+    print(
+        "    4. CHARGING/REFUELING requires manual or charge-zone evidence; "
+        "a long gap alone is not replenishment"
+    )
+    print(
+        "    5. Remaining moving rows use INCH / ACC / DEC / CRUISE rules"
+    )
     print(
         "All positive-duration rows are assigned one of the seven phases; "
-        "low-confidence fallbacks are explicitly audited."
+        "low-confidence fallbacks remain explicitly audited."
     )
-
     print()
-
-    # Manual log intentionally not loaded in this test.
-    manual_log = pd.DataFrame()
 
     pair_workbooks = discover_pair_workbooks()
 
