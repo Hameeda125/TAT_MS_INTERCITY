@@ -1,0 +1,30 @@
+TAT COMPLETE 9-STAGE PIPELINE
+Version: 2026-09-13_INTERCITY_9_STAGE_V6_ORDER_FIXED
+Started: 28-09-2026 22:42:37
+Python: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe
+Project root: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE
+Continue on error: False
+
+====================================================================================================
+STAGE 1/9 | Cleaning + permanent trip index
+====================================================================================================
+
+STAGE 1/9 COMPLETED | Cleaning + permanent trip index | 00:00:36
+
+====================================================================================================
+STAGE 2/9 | Manual trip-log reconciliation
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Trip-log reconciliation started
+
+TRIP-LOG RECONCILIATION FAILED | Trip-log workbook was not found: C:\Users\JAVED\Downloads\TAT Data Collection � Trip Log_Cleaned.xlsx. Keep the workbook at this path or set reference.trip_log_path in config/settings.yaml.
+
+STAGE 2/9 FAILED | Manual trip-log reconciliation
+Exit code: 1
+Elapsed: 00:00:01
+
+PIPELINE STOPPED SAFELY.
+Stage 2/9 failed: Manual trip-log reconciliation
+Later stages were not executed because they depend on upstream outputs.
+Run log: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\update_pipeline_9_stage_20260928_224237.log

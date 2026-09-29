@@ -1,0 +1,464 @@
+TAT COMPLETE 9-STAGE PIPELINE
+Version: 2026-09-29_INTERCITY_9_STAGE_V7_PATHS_STRICT_GUARD
+Started: 29-09-2026 01:39:05
+Python: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe
+Project root: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE
+Continue on error: False
+
+====================================================================================================
+STAGE 1/9 | Cleaning + permanent trip index
+====================================================================================================
+
+STAGE 1/9 COMPLETED | Cleaning + permanent trip index | 00:00:32
+
+====================================================================================================
+STAGE 2/9 | Manual trip-log reconciliation
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Trip-log reconciliation started
+
+Trip-log reconciliation completed
+Indexed telemetry files: 32
+Trip-log rows: 35
+One-to-one log/file matches: 32
+Verified trips ready for pairing: 31
+Matched trips requiring data check: 1
+Indexed files without a log row: 0
+Trip-log rows without a unique file: 3
+Source files assigned more than once: 0
+Verified trip index: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\verified_trip_index.csv
+Reconciliation audit: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\Trip_Log_Reconciliation.xlsx
+
+STAGE 2/9 COMPLETED | Manual trip-log reconciliation | 00:00:05
+
+====================================================================================================
+STAGE 3/9 | Candidate EV-ICE pairing
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\candidate_pairing.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\candidate_pairing.py
+Candidate-pair identification started
+
+Candidate-pair identification completed
+Trips ready for pairing: 31
+
+Strict preliminary-candidate rule:
+Same route/direction + start/end locations within 500/500 m + (same calendar day OR actual start timestamp difference <= 30 min)
+
+Non-strict preliminary-candidate rule:
+Same route/direction, but full-trip endpoint rules are not met and/or the trips are on different calendar days with actual start-time difference above the tolerance; common GPS-section validation and cropping are required
+
+Strict preliminary candidates: 1
+Non-strict preliminary candidates: 30
+Candidates ready for ordered GPS-route validation: 27
+Candidates requiring telemetry/distance review: 4
+Trips requiring sampling-quality review: 2
+Trips without a same-direction opposite-vehicle candidate: 4
+Candidate workbook: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Pairing\Pairing_Candidates.xlsx
+
+STAGE 3/9 COMPLETED | Candidate EV-ICE pairing | 00:00:01
+
+====================================================================================================
+STAGE 4/9 | Pair validation + common-section cropping
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py
+Script version: 2026-08-09_STRICT_COMMON_ROUTE_DISTANCE_EVIDENCE
+Pair route validation and common-section cropping started
+========================================================================
+STAGE 3: PAIR CROPPING
+========================================================================
+Candidates found: 31
+Address column will be preserved.
+
+[Validation 1/31] CAND_001 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 2/31] CAND_002 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 3/31] CAND_003 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 4/31] CAND_004 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 5/31] CAND_005 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 6/31] CAND_006 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 7/31] CAND_007 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 8/31] CAND_008 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 9/31] CAND_009 | Chennai to Pondicherry
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 10/31] CAND_010 | Madhuravoyal to Madiwala
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 11/31] CAND_011 | Madhuravoyal to Madiwala
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 12/31] CAND_012 | Madhuravoyal to SilkBoard
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 13/31] CAND_013 | Madhuravoyal to SilkBoard
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 14/31] CAND_014 | Madhuravoyal to SilkBoard
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 15/31] CAND_015 | Madiwala to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 16/31] CAND_016 | Madiwala to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 17/31] CAND_017 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 18/31] CAND_018 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 19/31] CAND_019 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 20/31] CAND_020 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 21/31] CAND_021 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 22/31] CAND_022 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 23/31] CAND_023 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 24/31] CAND_024 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 25/31] CAND_025 | Pondicherry to Chennai
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 26/31] CAND_026 | SilkBoard to Madhuravoyal
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:01
+[Validation 27/31] CAND_027 | SilkBoard to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 28/31] CAND_028 | SilkBoard to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 29/31] CAND_029 | SilkBoard to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 30/31] CAND_030 | SilkBoard to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+[Validation 31/31] CAND_031 | SilkBoard to Madhuravoyal
+    Status: FAILED_INPUT_OR_PROCESSING_ERROR | Time: 00:00:00
+
+Creating 18 pair workbooks...
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 1/18] PAIR_001_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1180 | ICE rows: 591 | This file: 00:00:01 | ETA: 00:01:18
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 2/18] PAIR_002_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1094 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:43
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 3/18] PAIR_003_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1155 | ICE rows: 591 | This file: 00:00:01 | ETA: 00:00:30
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 4/18] PAIR_004_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1160 | ICE rows: 1116 | This file: 00:00:01 | ETA: 00:00:24
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 5/18] PAIR_005_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1133 | ICE rows: 588 | This file: 00:00:01 | ETA: 00:00:19
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 6/18] PAIR_006_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 1102 | ICE rows: 1089 | This file: 00:00:01 | ETA: 00:00:16
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 7/18] PAIR_007_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 960 | ICE rows: 988 | This file: 00:00:01 | ETA: 00:00:14
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 8/18] PAIR_008_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 978 | ICE rows: 949 | This file: 00:00:01 | ETA: 00:00:12
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 9/18] PAIR_009_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 964 | ICE rows: 950 | This file: 00:00:01 | ETA: 00:00:10
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 10/18] PAIR_010_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 1145 | ICE rows: 1089 | This file: 00:00:01 | ETA: 00:00:09
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 11/18] PAIR_011_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1101 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:07
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 12/18] PAIR_012_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1142 | ICE rows: 1116 | This file: 00:00:01 | ETA: 00:00:06
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 13/18] PAIR_013_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1073 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:05
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 14/18] PAIR_014_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 979 | ICE rows: 992 | This file: 00:00:01 | ETA: 00:00:04
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 15/18] PAIR_015_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 830 | ICE rows: 804 | This file: 00:00:01 | ETA: 00:00:03
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 16/18] PAIR_016_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 983 | ICE rows: 988 | This file: 00:00:01 | ETA: 00:00:02
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 17/18] PAIR_017_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1118 | ICE rows: 1115 | This file: 00:00:01 | ETA: 00:00:01
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py:1526: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  crop = pd.concat(
+[Workbook 18/18] PAIR_018_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 1002 | ICE rows: 950 | This file: 00:00:01 | ETA: 00:00:00
+
+Pair cropping completed
+Preliminary candidates evaluated: 31
+Candidates passing all common-route crop rules: 18
+Candidates rejected by route/distance rules: 1
+Candidates not created due to input/processing error: 12
+Final comparable pair workbooks created: 18
+Strict final pairs: 0
+Non-strict final pairs: 18
+EV trips validly reused across more than one pair: 6
+ICE trips validly reused across more than one pair: 6
+Individual Input date folders mirrored under Paired: 19
+Date-folder rule: same-date pairs use DD-MM-YYYY; cross-date pairs use DD-MM-YYYY_to_DD-MM-YYYY
+Pair workbooks: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Paired
+Cropping audit: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Logs\Pair_Cropping_Log.xlsx
+Distance comparison evidence: 03A_Distance_Comparison in every pair workbook and Distance Comparison in the cropping audit
+Pair index for later stages: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\pair_index.csv
+Previous Paired folder backed up to: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Backups\Pair_Cropping_20260929_014000\Paired
+
+Next stage: feature_engineering.py
+
+STAGE 4/9 COMPLETED | Pair validation + common-section cropping | 00:00:18
+
+====================================================================================================
+STAGE 5/9 | Post-cropping feature engineering
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\feature_engineering.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\feature_engineering.py
+D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\feature_engineering.py:47: SyntaxWarning: invalid escape sequence '\-'
+  \-----------------------------------
+Script version: 2026-08-06_STAGE_3_PRESERVE_ADDRESS_V2
+Stage 3 feature engineering started
+Target: feature columns plus preserved Address; no datapoint colours
+
+
+FEATURE ENGINEERING STOPPED | nothing to repeat at position 0
+
+STAGE 5/9 FAILED | Post-cropping feature engineering
+Exit code: 1
+Elapsed: 00:00:01
+
+PIPELINE STOPPED SAFELY.
+Stage 5/9 failed: Post-cropping feature engineering
+Later stages were not executed because they depend on upstream outputs.
+Run log: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\update_pipeline_9_stage_20260929_013905.log
