@@ -1,0 +1,10 @@
+TAT COMPLETE 9-STAGE PIPELINE
+Version: 2026-09-29_INTERCITY_9_STAGE_V7_PATHS_STRICT_GUARD
+Started: 04-10-2026 21:37:27
+Python: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe
+Project root: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE
+Continue on error: False
+
+====================================================================================================
+STAGE 1/9 | Cleaning + permanent trip index
+====================================================================================================

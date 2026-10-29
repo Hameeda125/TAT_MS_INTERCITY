@@ -1,0 +1,701 @@
+TAT COMPLETE 9-STAGE PIPELINE
+Version: 2026-09-29_INTERCITY_9_STAGE_V7_PATHS_STRICT_GUARD
+Started: 01-10-2026 11:36:20
+Python: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe
+Project root: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE
+Continue on error: False
+
+====================================================================================================
+STAGE 1/9 | Cleaning + permanent trip index
+====================================================================================================
+
+STAGE 1/9 COMPLETED | Cleaning + permanent trip index | 00:00:37
+
+====================================================================================================
+STAGE 2/9 | Manual trip-log reconciliation
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Trip-log reconciliation started
+Script: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Version: 2026-09-29_RECONCILIATION_V3_INDEX_FRESHNESS_PACKET_TIME
+
+Trip-log reconciliation completed
+Indexed telemetry files: 34
+Trip-log rows: 34
+One-to-one log/file matches: 34
+Verified trips ready for pairing: 34
+Matched trips requiring data check: 0
+Indexed files without a log row: 0
+Trip-log rows without a unique file: 0
+Source files assigned more than once: 0
+Verified trip index: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\verified_trip_index.csv
+Reconciliation audit: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\Trip_Log_Reconciliation.xlsx
+
+STAGE 2/9 COMPLETED | Manual trip-log reconciliation | 00:00:06
+
+====================================================================================================
+STAGE 3/9 | Candidate EV-ICE pairing
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\candidate_pairing.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\candidate_pairing.py
+Candidate-pair identification started
+
+Candidate-pair identification completed
+Trips ready for pairing: 34
+
+Strict preliminary-candidate rule:
+Same route/direction + (same calendar day OR actual start timestamp difference <= 120 min). Full-trip endpoint separations are audit/QC only; pair_cropping.py decides final spatial comparability.
+
+Non-strict preliminary-candidate rule:
+Same route/direction, but different calendar day AND actual start-time difference above the 120-minute tolerance.
+
+Strict preliminary candidates: 11
+Non-strict preliminary candidates: 29
+Candidates ready for ordered GPS-route validation: 37
+Candidates with non-blocking telemetry/distance QC warning: 3
+Trips with non-blocking sampling-quality QC warning: 1
+Trips without a same-direction opposite-vehicle candidate: 4
+Candidate workbook: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Pairing\Pairing_Candidates.xlsx
+
+STAGE 3/9 COMPLETED | Candidate EV-ICE pairing | 00:00:01
+
+====================================================================================================
+STAGE 4/9 | Pair validation + common-section cropping
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\pair_cropping.py
+Script version: 2026-09-29_TEMPORAL_STRICT_COMMON_ROUTE_V3
+Pair route validation and common-section cropping started
+========================================================================
+STAGE 3: PAIR CROPPING
+========================================================================
+Candidates found: 40
+Address column will be preserved.
+
+[Validation 1/40] CAND_001 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 2/40] CAND_002 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 3/40] CAND_003 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 4/40] CAND_004 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 5/40] CAND_005 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 6/40] CAND_006 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 7/40] CAND_007 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 8/40] CAND_008 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 9/40] CAND_009 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 10/40] CAND_010 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 11/40] CAND_011 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 12/40] CAND_012 | Chennai to Pondicherry
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 13/40] CAND_013 | Madhuravoyal to Madiwala
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 14/40] CAND_014 | Madhuravoyal to Madiwala
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 15/40] CAND_015 | Madhuravoyal to SilkBoard
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 16/40] CAND_016 | Madhuravoyal to SilkBoard
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 17/40] CAND_017 | Madiwala to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 18/40] CAND_018 | Madiwala to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 19/40] CAND_019 | Madiwala to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 20/40] CAND_020 | Madiwala to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 21/40] CAND_021 | Pondicherry to Chennai
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 22/40] CAND_022 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 23/40] CAND_023 | Pondicherry to Chennai
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 24/40] CAND_024 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 25/40] CAND_025 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 26/40] CAND_026 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 27/40] CAND_027 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 28/40] CAND_028 | Pondicherry to Chennai
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 29/40] CAND_029 | Pondicherry to Chennai
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 30/40] CAND_030 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 31/40] CAND_031 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 32/40] CAND_032 | Pondicherry to Chennai
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 33/40] CAND_033 | SilkBoard to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 34/40] CAND_034 | SilkBoard to Madhuravoyal
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 35/40] CAND_035 | SilkBoard to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 36/40] CAND_036 | SilkBoard to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 37/40] CAND_037 | SilkBoard to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 38/40] CAND_038 | SilkBoard to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 39/40] CAND_039 | SilkBoard to Madhuravoyal
+    Status: REJECTED_ROUTE_VALIDATION | Time: 00:00:00
+[Validation 40/40] CAND_040 | SilkBoard to Madhuravoyal
+    Status: PASSED_ORDERED_ROUTE_VALIDATION | Time: 00:00:00
+
+Creating 18 pair workbooks...
+[Workbook 1/18] PAIR_001_NONSTRICT_SilkBoard_to_Madhuravoyal.xlsx | EV rows: 3643 | ICE rows: 3356 | This file: 00:00:03 | ETA: 00:02:28
+[Workbook 2/18] PAIR_002_STRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1180 | ICE rows: 591 | This file: 00:00:01 | ETA: 00:01:15
+[Workbook 3/18] PAIR_003_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1094 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:51
+[Workbook 4/18] PAIR_004_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1155 | ICE rows: 591 | This file: 00:00:01 | ETA: 00:00:38
+[Workbook 5/18] PAIR_005_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1160 | ICE rows: 1116 | This file: 00:00:01 | ETA: 00:00:31
+[Workbook 6/18] PAIR_006_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1133 | ICE rows: 588 | This file: 00:00:01 | ETA: 00:00:25
+[Workbook 7/18] PAIR_007_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 2306 | ICE rows: 591 | This file: 00:00:01 | ETA: 00:00:21
+[Workbook 8/18] PAIR_008_STRICT_Pondicherry_to_Chennai.xlsx | EV rows: 1102 | ICE rows: 1089 | This file: 00:00:01 | ETA: 00:00:18
+[Workbook 9/18] PAIR_009_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 964 | ICE rows: 950 | This file: 00:00:01 | ETA: 00:00:15
+[Workbook 10/18] PAIR_010_NONSTRICT_Pondicherry_to_Chennai.xlsx | EV rows: 1145 | ICE rows: 1089 | This file: 00:00:01 | ETA: 00:00:13
+[Workbook 11/18] PAIR_011_STRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1101 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:11
+[Workbook 12/18] PAIR_012_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1142 | ICE rows: 1116 | This file: 00:00:01 | ETA: 00:00:09
+[Workbook 13/18] PAIR_013_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1073 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:07
+[Workbook 14/18] PAIR_014_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 2119 | ICE rows: 1024 | This file: 00:00:01 | ETA: 00:00:06
+[Workbook 15/18] PAIR_015_STRICT_Chennai_to_Pondicherry.xlsx | EV rows: 1118 | ICE rows: 1115 | This file: 00:00:01 | ETA: 00:00:04
+[Workbook 16/18] PAIR_016_NONSTRICT_Chennai_to_Pondicherry.xlsx | EV rows: 2242 | ICE rows: 1114 | This file: 00:00:01 | ETA: 00:00:03
+[Workbook 17/18] PAIR_017_STRICT_Pondicherry_to_Chennai.xlsx | EV rows: 1002 | ICE rows: 950 | This file: 00:00:01 | ETA: 00:00:01
+[Workbook 18/18] PAIR_018_STRICT_SilkBoard_to_Madhuravoyal.xlsx | EV rows: 912 | ICE rows: 2701 | This file: 00:00:01 | ETA: 00:00:00
+
+Pair cropping completed
+Preliminary candidates evaluated: 40
+Candidates passing all common-route crop rules: 18
+Candidates rejected by route/distance rules: 22
+Candidates not created due to input/processing error: 0
+Final comparable pair workbooks created: 18
+Strict final pairs: 6
+Non-strict final pairs: 12
+EV trips validly reused across more than one pair: 6
+ICE trips validly reused across more than one pair: 6
+Individual Input date folders mirrored under Paired: 20
+Date-folder rule: same-date pairs use DD-MM-YYYY; cross-date pairs use DD-MM-YYYY_to_DD-MM-YYYY
+Pair workbooks: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Paired
+Cropping audit: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Logs\Pair_Cropping_Log.xlsx
+Distance comparison evidence: 03A_Distance_Comparison in every pair workbook and Distance Comparison in the cropping audit
+Pair index for later stages: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\pair_index.csv
+Previous Paired folder backed up to: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Backups\Pair_Cropping_20261001_113729\Paired
+
+Next stage: feature_engineering.py
+
+STAGE 4/9 COMPLETED | Pair validation + common-section cropping | 00:00:26
+
+====================================================================================================
+STAGE 5/9 | Post-cropping feature engineering
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\feature_engineering.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\feature_engineering.py
+Script version: 2026-09-29_STAGE5_PRESERVE_CLASS_ISO_QC_V4_REGEX_FIX
+Stage 5 feature engineering started
+Target: feature columns plus preserved Address; no datapoint colours
+
+Preflight: reading and calculating every pair workbook
+  Preflight checked 10/18 workbooks
+  Preflight checked 18/18 workbooks
+Preflight passed: 18 workbooks; 6 STRICT + 12 NONSTRICT
+
+  Saved and verified 5/18 workbooks
+  Saved and verified 10/18 workbooks
+  Saved and verified 15/18 workbooks
+  Saved and verified 18/18 workbooks
+
+Feature engineering completed and verified
+Pair-index rows received: 18
+Pair workbooks completed: 18
+STRICT pairs retained: 6
+NONSTRICT pairs retained: 12
+EV/ICE cropped-data sheets processed: 36
+Cropped datapoints processed: 46644
+Datapoints excluded: 0
+Blank cells in required feature columns: 0
+Datapoint row colours: NONE
+Normalization/standardization applied: NO
+Feature engineering audit: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Logs\Feature_Engineering_Log.xlsx
+Updated pair index: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\pair_index.csv
+Pair index workbook: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\Pair_Index.xlsx
+
+Next stage: phase_segmentation.py
+
+STAGE 5/9 COMPLETED | Post-cropping feature engineering | 00:00:21
+
+====================================================================================================
+STAGE 6/9 | Phase segmentation
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\phase_segmentation.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\phase_segmentation.py
+========================================================================================
+TAT STAGE 4 - INTERCITY PHASE SEGMENTATION
+SCRIPT VERSION: 2026-10-01_INTERCITY_MANUAL_FIRST_HYBRID_V5_TIMEDELTA_FIX
+========================================================================================
+Manual trip log: ENABLED | D:\TAT_Project\TAT Data Collection Intercity.xlsx
+Usable manual trip records loaded: 34
+Manual-first INTERCITY hierarchy:
+    1. Manual charging/refuelling start+duration or matched event has priority
+    2. Manual stop intervals/start timestamps are matched to telemetry
+    3. Unmatched stationary telemetry uses the 180 s INTERCITY STOP boundary
+    4. CHARGING/REFUELING requires manual or charge-zone evidence; a long gap alone is not replenishment
+    5. Remaining moving rows use INCH / ACC / DEC / CRUISE rules
+All positive-duration rows are assigned one of the seven phases; low-confidence fallbacks remain explicitly audited.
+
+Pair workbooks found: 18
+
+[1/18] PAIR_001_NONSTRICT_SilkBoard_to_Madhuravoyal.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 0/0 | ICE: 4/1
+    Start-only stop inference | EV events/rows: 0/0 | ICE events/rows: 1/4
+    Manual replenishment rows | EV: 320 | ICE: 0 | final time (min) | EV CHARGING: 33.53 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 52 (STOP rows 239, IDLE rows 332) | ICE: 1 (STOP rows 1, IDLE rows 0)
+    Time | this pair: 00:00:02 | elapsed: 00:00:02 | ETA: 00:00:26
+----------------------------------------------------------------------------------------
+[2/18] PAIR_018_STRICT_SilkBoard_to_Madhuravoyal.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 0/0 | ICE: 4/1
+    Start-only stop inference | EV events/rows: 0/0 | ICE events/rows: 1/4
+    Manual replenishment rows | EV: 10 | ICE: 0 | final time (min) | EV CHARGING: 21.52 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 2 (STOP rows 4, IDLE rows 0) | ICE: 1 (STOP rows 1, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:02 | ETA: 00:00:19
+----------------------------------------------------------------------------------------
+[3/18] PAIR_002_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 7/8 | ICE: 10/11
+    Start-only stop inference | EV events/rows: 7/7 | ICE events/rows: 10/10
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:03 | ETA: 00:00:16
+----------------------------------------------------------------------------------------
+[4/18] PAIR_003_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 6/8 | ICE: 0/0
+    Start-only stop inference | EV events/rows: 6/6 | ICE events/rows: 0/0
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:04 | ETA: 00:00:14
+----------------------------------------------------------------------------------------
+[5/18] PAIR_004_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 14/14 | ICE: 10/11
+    Start-only stop inference | EV events/rows: 14/14 | ICE events/rows: 10/10
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:05 | ETA: 00:00:12
+----------------------------------------------------------------------------------------
+[6/18] PAIR_005_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 8/8 | ICE: 9/9
+    Start-only stop inference | EV events/rows: 8/8 | ICE events/rows: 9/9
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:06 | ETA: 00:00:11
+----------------------------------------------------------------------------------------
+[7/18] PAIR_006_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 6/7 | ICE: 10/11
+    Start-only stop inference | EV events/rows: 6/6 | ICE events/rows: 10/10
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:06 | ETA: 00:00:10
+----------------------------------------------------------------------------------------
+[8/18] PAIR_007_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 15/10 | ICE: 10/11
+    Start-only stop inference | EV events/rows: 10/15 | ICE events/rows: 10/10
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 7 (STOP rows 5, IDLE rows 19) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:08 | ETA: 00:00:09
+----------------------------------------------------------------------------------------
+[9/18] PAIR_008_STRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 15/11 | ICE: 15/16
+    Start-only stop inference | EV events/rows: 9/9 | ICE events/rows: 15/15
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:09 | ETA: 00:00:09
+----------------------------------------------------------------------------------------
+[10/18] PAIR_009_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 11/11 | ICE: 6/9
+    Start-only stop inference | EV events/rows: 5/5 | ICE events/rows: 6/6
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:10 | ETA: 00:00:08
+----------------------------------------------------------------------------------------
+[11/18] PAIR_010_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 7/7 | ICE: 15/16
+    Start-only stop inference | EV events/rows: 7/7 | ICE events/rows: 15/15
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:11 | ETA: 00:00:07
+----------------------------------------------------------------------------------------
+[12/18] PAIR_011_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 12/14 | ICE: 0/0
+    Start-only stop inference | EV events/rows: 12/12 | ICE events/rows: 0/0
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:12 | ETA: 00:00:06
+----------------------------------------------------------------------------------------
+[13/18] PAIR_012_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 13/14 | ICE: 9/9
+    Start-only stop inference | EV events/rows: 13/13 | ICE events/rows: 9/9
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:13 | ETA: 00:00:05
+----------------------------------------------------------------------------------------
+[14/18] PAIR_013_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 7/7 | ICE: 0/0
+    Start-only stop inference | EV events/rows: 7/7 | ICE events/rows: 0/0
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:13 | ETA: 00:00:04
+----------------------------------------------------------------------------------------
+[15/18] PAIR_014_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 15/10 | ICE: 0/0
+    Start-only stop inference | EV events/rows: 7/15 | ICE events/rows: 0/0
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 7 (STOP rows 5, IDLE rows 13) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:15 | ETA: 00:00:03
+----------------------------------------------------------------------------------------
+[16/18] PAIR_015_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 7/7 | ICE: 9/9
+    Start-only stop inference | EV events/rows: 7/7 | ICE events/rows: 9/9
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:15 | ETA: 00:00:02
+----------------------------------------------------------------------------------------
+[17/18] PAIR_016_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 18/10 | ICE: 9/9
+    Start-only stop inference | EV events/rows: 10/18 | ICE events/rows: 9/9
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 8 (STOP rows 5, IDLE rows 19) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:17 | ETA: 00:00:01
+----------------------------------------------------------------------------------------
+[18/18] PAIR_017_STRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | Category: INTERCITY | STOP threshold: 180 s | EV manual: MATCHED | ICE manual: MATCHED
+    Manual stop matching | EV: 2/7 | ICE: 6/9
+    Start-only stop inference | EV events/rows: 2/2 | ICE events/rows: 6/6
+    Manual replenishment rows | EV: 0 | ICE: 0 | final time (min) | EV CHARGING: 0.00 | ICE REFUELING: 0.00
+    Rule gaps | EV: 0 | ICE: 0
+    Recorded-zero episodes | EV: 0 (STOP rows 0, IDLE rows 0) | ICE: 0 (STOP rows 0, IDLE rows 0)
+    Time | this pair: 00:00:01 | elapsed: 00:00:18 | ETA: 00:00:00
+----------------------------------------------------------------------------------------
+
+========================================================================================
+STAGE 4 SUMMARY
+========================================================================================
+Completed: 18/18
+Errors: 0
+Global log: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\phase_segmentation_revised_log.xlsx
+
+IMPORTANT: rerun tat_computation.py and results_visualization.py after this Stage 4. Existing downstream TAT sheets may contain stale results from an older segmentation.
+========================================================================================
+
+STAGE 6/9 COMPLETED | Phase segmentation | 00:00:19
+
+====================================================================================================
+STAGE 7/9 | TAT computation
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\tat_computation.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\tat_computation.py
+================================================================================
+STAGE 5: COMPACT TAT COMPUTATION
+================================================================================
+Script version: 2026-08-06_STAGE_5_MINIMAL_TWO_SHEETS_V1
+Pair workbooks: 18
+Result sheets per workbook: 2
+  - 08_TAT_Phase_Comparison
+  - 09_SpeedRange_Comparison
+Moving phases: INCH + ACC + DEC + CRUISE
+
+[1/18] PAIR_001 | PAIR_001_NONSTRICT_SilkBoard_to_Madhuravoyal.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:02 | Elapsed: 00:00:02 | ETA: 00:00:28
+--------------------------------------------------------------------------------
+[2/18] PAIR_002 | PAIR_002_STRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:02 | ETA: 00:00:18
+--------------------------------------------------------------------------------
+[3/18] PAIR_003 | PAIR_003_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:03 | ETA: 00:00:14
+--------------------------------------------------------------------------------
+[4/18] PAIR_004 | PAIR_004_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:03 | ETA: 00:00:12
+--------------------------------------------------------------------------------
+[5/18] PAIR_005 | PAIR_005_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:04 | ETA: 00:00:10
+--------------------------------------------------------------------------------
+[6/18] PAIR_006 | PAIR_006_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:00 | Elapsed: 00:00:04 | ETA: 00:00:09
+--------------------------------------------------------------------------------
+[7/18] PAIR_007 | PAIR_007_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:05 | ETA: 00:00:08
+--------------------------------------------------------------------------------
+[8/18] PAIR_008 | PAIR_008_STRICT_Pondicherry_to_Chennai.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:06 | ETA: 00:00:07
+--------------------------------------------------------------------------------
+[9/18] PAIR_009 | PAIR_009_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:06 | ETA: 00:00:06
+--------------------------------------------------------------------------------
+[10/18] PAIR_010 | PAIR_010_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:07 | ETA: 00:00:06
+--------------------------------------------------------------------------------
+[11/18] PAIR_011 | PAIR_011_STRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:08 | ETA: 00:00:05
+--------------------------------------------------------------------------------
+[12/18] PAIR_012 | PAIR_012_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:08 | ETA: 00:00:04
+--------------------------------------------------------------------------------
+[13/18] PAIR_013 | PAIR_013_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:09 | ETA: 00:00:03
+--------------------------------------------------------------------------------
+[14/18] PAIR_014 | PAIR_014_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:10 | ETA: 00:00:03
+--------------------------------------------------------------------------------
+[15/18] PAIR_015 | PAIR_015_STRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:10 | ETA: 00:00:02
+--------------------------------------------------------------------------------
+[16/18] PAIR_016 | PAIR_016_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:11 | ETA: 00:00:01
+--------------------------------------------------------------------------------
+[17/18] PAIR_017 | PAIR_017_STRICT_Pondicherry_to_Chennai.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:12 | ETA: 00:00:01
+--------------------------------------------------------------------------------
+[18/18] PAIR_018 | PAIR_018_STRICT_SilkBoard_to_Madhuravoyal.xlsx
+    Finished | Status: COMPLETED | This pair: 00:00:01 | Elapsed: 00:00:13 | ETA: 00:00:00
+--------------------------------------------------------------------------------
+
+================================================================================
+STAGE 5 PROCESSING SUMMARY
+================================================================================
+Completed pairs: 18/18
+Pairs with errors: 0
+Total elapsed: 00:00:13
+TAT log: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\TAT_Computation_Log.xlsx
+================================================================================
+
+TAT STAGE 5 COMPLETED SUCCESSFULLY
+Pair workbooks processed: 18
+Updated pair index: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\pair_index.csv
+TAT log: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\TAT_Computation_Log.xlsx
+
+STAGE 7/9 COMPLETED | TAT computation | 00:00:13
+
+====================================================================================================
+STAGE 8/9 | Results visualization
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\results_visualization.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\results_visualization.py
+========================================================================================
+STAGE 6: INTERCITY ANALYTICAL RESULTS VISUALIZATION
+========================================================================================
+Script version: 2026-10-01_INTERCITY_ONLY_VISUALIZATION_V1
+Pair workbooks: 18
+Output: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Visualizations\INTERCITY
+
+Summary-owned plots NOT generated by this stage:
+  - Average moving speed
+  - Average phase distance
+  - Average phase time
+  - EV vs ICE TAT summary
+
+Stage-6 analytical plots:
+  - pair-level TAT difference
+  - TAT difference distribution
+  - EV/ICE TAT distribution
+  - phase difference heatmap
+  - phase contribution analysis
+  - Pearson/Spearman correlations
+  - EV/ICE equality scatter plots
+  - Bland-Altman
+  - phase Pareto
+  - route forest
+  - STRICT/NONSTRICT
+  - PCA
+  - hierarchical clustering
+
+[1/18] PAIR_001 | PAIR_001_NONSTRICT_SilkBoard_to_Madhuravoyal.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.7s
+----------------------------------------------------------------------------------------
+[2/18] PAIR_002 | PAIR_002_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 1.4s
+----------------------------------------------------------------------------------------
+[3/18] PAIR_003 | PAIR_003_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 1.3s
+----------------------------------------------------------------------------------------
+[4/18] PAIR_004 | PAIR_004_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 1.3s
+----------------------------------------------------------------------------------------
+[5/18] PAIR_005 | PAIR_005_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 1.3s
+----------------------------------------------------------------------------------------
+[6/18] PAIR_006 | PAIR_006_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 1.2s
+----------------------------------------------------------------------------------------
+[7/18] PAIR_007 | PAIR_007_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.0s
+----------------------------------------------------------------------------------------
+[8/18] PAIR_008 | PAIR_008_STRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.4s
+----------------------------------------------------------------------------------------
+[9/18] PAIR_009 | PAIR_009_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.4s
+----------------------------------------------------------------------------------------
+[10/18] PAIR_010 | PAIR_010_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.4s
+----------------------------------------------------------------------------------------
+[11/18] PAIR_011 | PAIR_011_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.3s
+----------------------------------------------------------------------------------------
+[12/18] PAIR_012 | PAIR_012_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.4s
+----------------------------------------------------------------------------------------
+[13/18] PAIR_013 | PAIR_013_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.3s
+----------------------------------------------------------------------------------------
+[14/18] PAIR_014 | PAIR_014_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.7s
+----------------------------------------------------------------------------------------
+[15/18] PAIR_015 | PAIR_015_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.3s
+----------------------------------------------------------------------------------------
+[16/18] PAIR_016 | PAIR_016_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY
+    Time: 3.0s
+----------------------------------------------------------------------------------------
+[17/18] PAIR_017 | PAIR_017_STRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY
+    Time: 2.2s
+----------------------------------------------------------------------------------------
+[18/18] PAIR_018 | PAIR_018_STRICT_SilkBoard_to_Madhuravoyal.xlsx
+    COMPLETED | INTERCITY
+    Time: 3.0s
+----------------------------------------------------------------------------------------
+
+========================================================================================
+INTERCITY MASTER ANALYSIS
+========================================================================================
+Completed pairs: 18
+
+========================================================================================
+STAGE 6 COMPLETE
+========================================================================================
+INTERCITY pairs processed : 18
+Completed                  : 18
+Errors                     : 0
+Total elapsed              : 53.6s
+INTERCITY visualizations  : D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Visualizations\INTERCITY
+Average analysis          : D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Visualizations\INTERCITY\Average
+Route-wise analysis       : D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Visualizations\INTERCITY\Route_Wise
+========================================================================================
+
+INTERCITY VISUALIZATION COMPLETED SUCCESSFULLY
+Pairs processed: 18
+
+STAGE 8/9 COMPLETED | Results visualization | 00:00:56
+
+====================================================================================================
+STAGE 9/9 | Master INTERCITY summary + ML training datasets
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\master_summary_intercity.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\master_summary_intercity.py
+========================================================================================
+MASTER SUMMARY: ALL PAIRS + INTERCITY + SAME-DAY + DIFFERENT-DAY/SIMILAR-TIME + ROUTE-WISE
+========================================================================================
+Pair workbooks found: 18
+[1/18] PAIR_001 | PAIR_001_NONSTRICT_SilkBoard_to_Madhuravoyal.xlsx
+    COMPLETED | INTERCITY | Maduravoyal <-> Silk Board
+[2/18] PAIR_002 | PAIR_002_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[3/18] PAIR_003 | PAIR_003_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[4/18] PAIR_004 | PAIR_004_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[5/18] PAIR_005 | PAIR_005_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[6/18] PAIR_006 | PAIR_006_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[7/18] PAIR_007 | PAIR_007_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[8/18] PAIR_008 | PAIR_008_STRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[9/18] PAIR_009 | PAIR_009_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[10/18] PAIR_010 | PAIR_010_NONSTRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[11/18] PAIR_011 | PAIR_011_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[12/18] PAIR_012 | PAIR_012_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[13/18] PAIR_013 | PAIR_013_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[14/18] PAIR_014 | PAIR_014_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[15/18] PAIR_015 | PAIR_015_STRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[16/18] PAIR_016 | PAIR_016_NONSTRICT_Chennai_to_Pondicherry.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[17/18] PAIR_017 | PAIR_017_STRICT_Pondicherry_to_Chennai.xlsx
+    COMPLETED | INTERCITY | Chennai <-> Pondicherry
+[18/18] PAIR_018 | PAIR_018_STRICT_SilkBoard_to_Madhuravoyal.xlsx
+    COMPLETED | INTERCITY | Maduravoyal <-> Silk Board
+
+ML TRAINING DATA CREATED
+    STRICT rows: 6
+    File: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Master_Summary\Training_Data\EV_ICE_Training_STRICT.xlsx
+    NONSTRICT rows: 12
+    File: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\Master_Summary\Training_Data\EV_ICE_Training_NONSTRICT.xlsx
+    Features per row: 61
+
+Successfully extracted: 18
+Errors: 0

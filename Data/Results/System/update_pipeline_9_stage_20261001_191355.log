@@ -1,0 +1,39 @@
+TAT COMPLETE 9-STAGE PIPELINE
+Version: 2026-09-29_INTERCITY_9_STAGE_V7_PATHS_STRICT_GUARD
+Started: 01-10-2026 19:13:55
+Python: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe
+Project root: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE
+Continue on error: False
+
+====================================================================================================
+STAGE 1/9 | Cleaning + permanent trip index
+====================================================================================================
+
+STAGE 1/9 COMPLETED | Cleaning + permanent trip index | 00:00:38
+
+====================================================================================================
+STAGE 2/9 | Manual trip-log reconciliation
+====================================================================================================
+File: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Command: D:\Hameeda_Projects\TAT_MS_INTERCITY\.venv\Scripts\python.exe -u D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Trip-log reconciliation started
+Script: D:\Hameeda_Projects\TAT_MS_INTERCITY\TAT_MS_INTERCITY_PIPELINE\src\trip_log_reconciliation.py
+Version: 2026-09-29_RECONCILIATION_V3_INDEX_FRESHNESS_PACKET_TIME
+
+TRIP-LOG RECONCILIATION FAILED | trip_index.csv is stale relative to Data/Input.
+Current raw input workbooks: 37
+Files currently present in trip_index.csv: 36
+Raw input workbook(s) not yet indexed:
+  - 25-09-2026\chennai_to_pondicherry_ediesel_intercity.xlsx
+Run these stages before reconciliation:
+  python .\TAT_MS_INTERCITY_PIPELINE\src\cleaned_file_writer.py
+  python .\TAT_MS_INTERCITY_PIPELINE\src\trip_index.py
+
+STAGE 2/9 FAILED | Manual trip-log reconciliation
+Exit code: 1
+Elapsed: 00:00:01
+
+PIPELINE STOPPED SAFELY.
+Stage 2/9 failed: Manual trip-log reconciliation
+Later stages were not executed because they depend on upstream outputs.
+Run log: D:\Hameeda_Projects\TAT_MS_INTERCITY\Data\Results\System\update_pipeline_9_stage_20261001_191355.log
