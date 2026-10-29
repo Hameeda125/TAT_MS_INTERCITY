@@ -4505,6 +4505,54 @@ def main() -> None:
     )
 
     # ---------------------------------------------------------------
+    # Pair-class summary sheets
+    # ---------------------------------------------------------------
+    strict_records = [
+        record
+        for record in intercity_records
+        if clean(record.pair_class).upper() == "STRICT"
+    ]
+
+    nonstrict_records = [
+        record
+        for record in intercity_records
+        if clean(record.pair_class).upper() == "NONSTRICT"
+    ]
+
+    combined_records = [
+        record
+        for record in intercity_records
+        if clean(record.pair_class).upper() in {"STRICT", "NONSTRICT"}
+    ]
+
+    write_scope_sheet(
+        workbook,
+        used_sheet_names,
+        "07_STRICT",
+        "ALL STRICT PAIRS",
+        strict_records,
+        force_pairwise_tat=True,
+    )
+
+    write_scope_sheet(
+        workbook,
+        used_sheet_names,
+        "08_NONSTRICT",
+        "ALL NONSTRICT PAIRS",
+        nonstrict_records,
+        force_pairwise_tat=True,
+    )
+
+    write_scope_sheet(
+        workbook,
+        used_sheet_names,
+        "09_COMBINED",
+        "STRICT + NONSTRICT COMBINED",
+        combined_records,
+        force_pairwise_tat=True,
+    )
+
+    # ---------------------------------------------------------------
     # Route-wise grouped sheets
     # ---------------------------------------------------------------
     # These sheets preserve the existing behaviour: both directions of a
@@ -4739,6 +4787,9 @@ def main() -> None:
         "04_Same_Day_INTERCITY",
         "05_Diff_Day_Time_All",
         "06_Diff_Day_Time_INTERCITY",
+        "07_STRICT",
+        "08_NONSTRICT",
+        "09_COMBINED",
     ]
 
     ordered_names = [

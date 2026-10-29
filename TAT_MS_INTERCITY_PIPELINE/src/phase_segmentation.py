@@ -39,11 +39,11 @@ evidence for short/fallback intervals when:
     gap_equivalent_speed_kmh < 1.0
 
 For an INTERCITY sparse-device gap longer than 180 seconds, the established
-project time-gap rule is
-applied even when implied speed is higher: charge-zone/manual evidence makes
-the interval CHARGING/REFUELING; otherwise it is STOP and the high implied
-speed is flagged for review. This avoids erasing a real omitted stop merely
-because the points immediately before and after it contain movement.
+project time-gap rule is applied even when implied speed is higher. A gap is
+CHARGING/REFUELING only when it is matched to charging/refuelling evidence in
+the manual trip log; otherwise it is STOP and the high implied speed is flagged
+for review. This avoids erasing a real omitted stop merely because the points
+immediately before and after it contain movement.
 
 The implied-speed test also replaces the old fixed "Distance <= 150 m" test
 for shorter gaps, which incorrectly classified moving intervals as IDLE.
@@ -60,22 +60,22 @@ path remains valid even when small GPS jitter makes gap-equivalent speed exceed
 B. Phase rules
 --------------
 Priority 1 - CHARGING / REFUELING
-    Manual charging/refuelling evidence is applied first. An explicit manual
-    start+duration window reserves every overlapping positive telemetry interval.
-    Otherwise, compatible stationary/device-gap telemetry is matched within the
-    existing manual-event tolerance. Automatic replenishment requires charge-zone
-    evidence; a long telemetry gap alone is NOT charging/refuelling.
+    Manual charging/refuelling evidence is applied first. The manual timestamp is
+    treated as an approximate anchor and matched to the most plausible stationary
+    telemetry episode within the existing tolerance. The complete matched episode
+    is reserved as CHARGING/REFUELING before STOP/IDLE logic runs.
 
-    Charge-zone evidence comes from either telemetry station/operator text or
-    the charging location in the matched manual record.
+    Station/operator address text and manual charging location are matching/ranking
+    aids only. They never create CHARGING/REFUELING without manual log evidence.
 
 Priority 2 - STOP
     INTERCITY: qualifying stationary duration > 180 s -> STOP unless already
     reserved as CHARGING/REFUELING.
 
 
-    Gap-equivalent speed remains an audit/confidence signal. It is not the
-    CHARGING-versus-STOP separator; location/manual evidence is.
+    Gap-equivalent speed remains an audit/confidence signal. The separator is
+    manual charging/refuelling evidence: without it, stationary telemetry remains
+    STOP/IDLE according to duration.
 
 Priority 3 - IDLE
     INTERCITY: qualifying stationary duration <= 180 s
@@ -151,22 +151,27 @@ When stop timestamps is populated, Additional is not parsed as a second stop
 source.  Older Additional-only records remain supported as a fallback.
 
 Manual charging matching:
-    - explicit charging start plus duration reserves the overlapping window
-    - otherwise a long device gap or cumulative zero-speed episode is matched
-    - direct interval match first
-    - otherwise +/-15-minute search
-    - if manual location is available, matching address is preferred
-    - if manual duration is available, gap-duration similarity is a ranking aid
-    - if no charging timestamp exists but a location exists, location evidence
-      can match the stationary gap
+    - charging timestamp is an approximate event anchor, not an exact telemetry key
+    - Charging time (min) is the target event duration when it is available
+    - telemetry around the anchor is searched for a contiguous stationary/very-low-speed
+      region; INCH-like manoeuvring (<=5 km/h) may belong to that region
+    - when the region is longer than the manual duration, the contiguous sub-window whose
+      observed telemetry duration best matches the manual target is reserved
+    - clearly moving rows are never pulled into CHARGING merely to force the target duration
+    - if manual duration is unavailable, the complete matched low-movement episode is used
+    - if manual location is available, matching address is used only as supporting evidence
+    - if no charging timestamp exists but a manual charging location exists, that
+      location can identify the low-movement episode
+    - if the manual log contains a positive Charging time (min) but neither timestamp
+      nor location, the duration itself remains authoritative manual charging evidence:
+      the complete trip is searched for the safest low-movement window matching that
+      duration; charging-station address evidence and separation from logged normal-stop
+      timestamps are used as ranking evidence
+    - sparse-device long gaps remain eligible because a stopped vehicle may emit no points
 
-The manual charging duration is stored separately in the audit/details sheet.
-It is NOT silently substituted into the original Time Difference column.
-
-When both a manual start time and duration are available, every positive
-telemetry interval overlapping that manual time window is segmented as
-CHARGING/REFUELING.  This also works when the device contains several short
-rows during the event instead of one long gap.
+The manual charging duration is stored separately in the audit/details sheet and used as a
+target for selecting telemetry rows. It is NOT written into or substituted for the original
+Time Difference column.
 
 E. Address station evidence
 ---------------------------
@@ -175,7 +180,8 @@ The address evidence uses BOTH ends of the gap interval:
     current row Address
     previous/current Reverse Geocoded Address (if present)
 
-So a charging station at either boundary can support replenishment.
+This evidence is used only to rank/confirm a manually recorded charging or
+refuelling event. Address evidence alone never creates a replenishment phase.
 
 F. Boundary / data-quality scenarios
 ------------------------------------
@@ -305,7 +311,7 @@ MANUAL_EVENT_AUDIT_SHEET = "08_Manual_Event_Matching"
 CHARGING_DETAILS_SHEET = "charging time details"
 
 GLOBAL_LOG_NAME = "phase_segmentation_revised_log.xlsx"
-SCRIPT_VERSION = f"{datetime.now():%Y-%m-%d}_INTERCITY_MANUAL_FIRST_HYBRID_V5_TIMEDELTA_FIX"
+SCRIPT_VERSION = f"{datetime.now():%Y-%m-%d}_INTERCITY_MANUAL_FIRST_HYBRID_V8_DURATION_ONLY_CHARGING"
 
 
 # ============================================================================
@@ -3456,6 +3462,609 @@ def match_event_to_stationary_gap(
     )
 
 
+
+def select_manual_replenishment_rows(
+    frame: pd.DataFrame,
+    event: ManualEvent,
+    positive: np.ndarray,
+    stationary_like: np.ndarray,
+    device_gap_long: np.ndarray,
+    device_speed_kmh: np.ndarray,
+    gap_speed_kmh: np.ndarray,
+    address_station_evidence: np.ndarray,
+    used_rows: set[int],
+    normal_stop_events: list[ManualEvent] | None = None,
+) -> tuple[
+    EventMatch,
+    np.ndarray,
+]:
+    """Select the telemetry rows belonging to one manual charging/refuelling event.
+
+    The manual charging timestamp is an approximate anchor.  When the maintained
+    log also provides ``Charging time (min)``, that duration is treated as the
+    TARGET duration rather than as an exact start->end window.  This is important
+    because the hand-recorded timestamp may be a little early/late while the
+    telemetry may contain a longer low-speed dwell around the charger.
+
+    Selection is deliberately conservative:
+
+    1. Build contiguous low-movement runs using established stationary evidence,
+       sparse-device long gaps, or very-low-speed (<=5 km/h) telemetry.
+    2. If a timestamp exists, keep runs containing the manual anchor or lying within
+       the existing +/-15-minute tolerance. If timestamp is absent but a manual
+       location exists, require that location. If both timestamp and location are
+       absent but a positive manual duration exists, search the whole trip and rank
+       low-movement candidates using duration agreement, charging-station evidence,
+       and separation from logged normal-stop timestamps.
+    3. When a manual duration exists and the run is longer than that duration,
+       choose the contiguous sub-window whose ORIGINAL telemetry Time Difference
+       total is closest to the target.  Ties prefer a start closer to the manual
+       anchor and lower GPS displacement.
+    4. Never include clearly moving rows solely to make the duration equal the
+       manual value.  If the available low-movement evidence is shorter than the
+       manual duration, keep the observed low-movement rows and expose the shortfall
+       in the existing audit/details output instead of corrupting motion phases.
+
+    No telemetry values are edited and no row is split.  The returned rows are
+    reserved before STOP/IDLE/INCH classification.
+    """
+    empty_rows = np.array([], dtype=int)
+
+    gap = frame[TIME_GAP].to_numpy(dtype=float)
+    distance = frame[DISTANCE].to_numpy(dtype=float)
+    starts = interval_start_times(frame)
+    ends = frame[TIMESTAMP]
+
+    manual_location_evidence = manual_location_mask(
+        frame,
+        event.location,
+    )
+
+    # Normal manual-stop timestamps are NEGATIVE ranking evidence for a
+    # duration-only charging event. They do not override charging priority, but
+    # when the charging timestamp/location is missing they help us avoid choosing
+    # a stationary episode that the log explicitly identified as an ordinary stop.
+    manual_normal_stop_evidence = np.zeros(
+        len(frame),
+        dtype=bool,
+    )
+
+    if normal_stop_events:
+        alignment = safe_timedelta(
+            seconds=MANUAL_STOP_START_ALIGNMENT_SECONDS
+        )
+
+        for stop_event in normal_stop_events:
+            if stop_event.start is None:
+                continue
+
+            if (
+                stop_event.is_interval
+                and stop_event.end is not None
+                and stop_event.end > stop_event.start
+            ):
+                manual_normal_stop_evidence |= manual_event_overlap_mask(
+                    frame,
+                    stop_event,
+                )
+                continue
+
+            stop_time = pd.Timestamp(
+                stop_event.start
+            )
+
+            nearby = (
+                starts.notna()
+                & ends.notna()
+                & (
+                    starts
+                    <= stop_time
+                    + alignment
+                )
+                & (
+                    ends
+                    >= stop_time
+                    - alignment
+                )
+            ).to_numpy(
+                dtype=bool
+            )
+
+            manual_normal_stop_evidence |= nearby
+
+    low_device_speed = (
+        positive
+        & np.isfinite(device_speed_kmh)
+        & (device_speed_kmh >= 0.0)
+        & (device_speed_kmh <= INCH_MAX_KMH)
+    )
+
+    low_gap_speed = (
+        positive
+        & np.isfinite(gap_speed_kmh)
+        & (gap_speed_kmh >= 0.0)
+        & (gap_speed_kmh <= INCH_MAX_KMH)
+    )
+
+    # Charging can contain genuine zero-speed telemetry plus very slow plug-in /
+    # parking manoeuvring.  Either device speed or GPS-equivalent speed being low
+    # is sufficient evidence here because explicit MANUAL charging evidence is
+    # already required before this function is called.
+    low_movement = (
+        positive
+        & (
+            stationary_like
+            | device_gap_long
+            | low_device_speed
+            | low_gap_speed
+        )
+    )
+
+    for row in used_rows:
+        if 0 <= row < len(low_movement):
+            low_movement[row] = False
+
+    target_duration = (
+        float(event.duration_seconds)
+        if event.duration_seconds is not None
+        and math.isfinite(event.duration_seconds)
+        and event.duration_seconds > 0
+        else None
+    )
+
+    anchor = (
+        pd.Timestamp(event.start)
+        if event.start is not None
+        else None
+    )
+
+    tolerance = float(MANUAL_EVENT_TOLERANCE_SECONDS)
+
+    def temporal_relation(
+        window_start: pd.Timestamp,
+        window_end: pd.Timestamp,
+    ) -> tuple[bool, float, float]:
+        """Return (eligible, boundary_offset_s, start_offset_s)."""
+        if anchor is None:
+            return True, 0.0, 0.0
+
+        contains = (
+            window_start
+            <= anchor
+            <= window_end
+        )
+
+        boundary_offset = (
+            0.0
+            if contains
+            else min(
+                abs((anchor - window_start).total_seconds()),
+                abs((anchor - window_end).total_seconds()),
+            )
+        )
+
+        start_offset = abs(
+            (window_start - anchor).total_seconds()
+        )
+
+        return (
+            contains
+            or boundary_offset <= tolerance,
+            float(boundary_offset),
+            float(start_offset),
+        )
+
+    candidate_runs: list[
+        tuple[
+            tuple[Any, ...],
+            np.ndarray,
+            pd.Timestamp,
+            pd.Timestamp,
+            float,
+        ]
+    ] = []
+
+    for run in consecutive_true_runs(low_movement):
+        run = np.asarray(run, dtype=int)
+        if len(run) == 0:
+            continue
+
+        first = int(run[0])
+        last = int(run[-1])
+
+        if (
+            pd.isna(starts.iloc[first])
+            or pd.isna(ends.iloc[last])
+        ):
+            continue
+
+        run_start = pd.Timestamp(starts.iloc[first])
+        run_end = pd.Timestamp(ends.iloc[last])
+
+        eligible, boundary_offset, start_offset = temporal_relation(
+            run_start,
+            run_end,
+        )
+
+        location_supported = bool(
+            manual_location_evidence[run].any()
+        )
+
+        # No timestamp:
+        #   * location present  -> require the maintained manual location;
+        #   * duration only     -> the positive manual duration itself is explicit
+        #                          charging/refuelling evidence, so search all safe
+        #                          low-movement runs in the trip.
+        # Address/station text still remains ranking evidence only; it cannot create
+        # charging when the manual event itself is absent.
+        if anchor is None:
+            if event.location:
+                eligible = location_supported
+            elif target_duration is not None:
+                eligible = True
+            else:
+                eligible = False
+
+        if not eligible:
+            continue
+
+        run_duration = float(
+            np.nansum(gap[run])
+        )
+
+        run_distance = float(
+            np.nansum(distance[run])
+        )
+
+        run_speed = (
+            run_distance / run_duration * 3.6
+            if run_duration > 0
+            else float("inf")
+        )
+
+        duration_shortfall = (
+            max(0.0, target_duration - run_duration)
+            if target_duration is not None
+            else 0.0
+        )
+
+        duration_difference = (
+            abs(run_duration - target_duration)
+            if target_duration is not None
+            else 0.0
+        )
+
+        contains_anchor = (
+            anchor is not None
+            and run_start <= anchor <= run_end
+        )
+
+        station_supported = bool(
+            address_station_evidence[run].any()
+        )
+
+        normal_stop_overlap_seconds = float(
+            np.nansum(
+                gap[
+                    run[
+                        manual_normal_stop_evidence[
+                            run
+                        ]
+                    ]
+                ]
+            )
+        )
+
+        # Duration feasibility is intentionally considered before exact anchor
+        # containment.  A five-minute stationary blip exactly at a manual
+        # 30-minute charging timestamp must not beat a nearby 30-minute dwell.
+        score = (
+            0
+            if target_duration is None
+            or duration_shortfall <= max(60.0, target_duration * 0.10)
+            else 1,
+            duration_shortfall,
+            0 if contains_anchor else (1 if anchor is not None else 0),
+            boundary_offset,
+            0 if location_supported else (1 if event.location else 0),
+            0 if station_supported else 1,
+            normal_stop_overlap_seconds,
+            duration_difference,
+            run_speed,
+            start_offset,
+            -run_duration,
+        )
+
+        candidate_runs.append(
+            (
+                score,
+                run,
+                run_start,
+                run_end,
+                run_duration,
+            )
+        )
+
+    # Sparse-device safety fallback.  If no contiguous low-movement run was
+    # available, retain the earlier manual-event matcher so a genuine charging
+    # stop represented by one long missing-record gap can still be captured.
+    if not candidate_runs:
+        fallback_match = match_event_to_stationary_gap(
+            frame=frame,
+            event=event,
+            eligible_mask=(
+                positive
+                & (
+                    stationary_like
+                    | device_gap_long
+                )
+            ),
+            address_station_evidence=address_station_evidence,
+            used_rows=used_rows,
+            allow_location_only=True,
+            relaxed_mask=(
+                positive
+                & np.isfinite(gap)
+                & (gap > IDLE_MIN_SECONDS)
+            ),
+        )
+
+        if (
+            fallback_match.match_status == "MATCHED"
+            and fallback_match.telemetry_row_index is not None
+        ):
+            row = int(
+                fallback_match.telemetry_row_index
+            )
+            rows = np.array(
+                [row],
+                dtype=int,
+            )
+
+            rebuilt = event_match_from_rows(
+                frame=frame,
+                event=event,
+                rows=rows,
+                method=(
+                    f"{fallback_match.match_method} + "
+                    "SPARSE_DEVICE_REPLENISHMENT_FALLBACK"
+                ),
+                station_evidence=address_station_evidence,
+                notes=(
+                    "No contiguous low-movement charging episode was available; "
+                    "the manually recorded event was matched to the safest "
+                    "compatible sparse-device telemetry gap."
+                ),
+            )
+            return rebuilt, rows
+
+        return fallback_match, empty_rows
+
+    candidate_runs.sort(
+        key=lambda item: item[0]
+    )
+
+    _, best_run, run_start, run_end, run_duration = candidate_runs[0]
+    selected_rows = best_run.copy()
+
+    duration_only_manual = (
+        anchor is None
+        and not event.location
+        and target_duration is not None
+    )
+
+    selection_method = (
+        "MANUAL_DURATION_ONLY_MATCHED_LOW_MOVEMENT_EPISODE"
+        if duration_only_manual
+        else "MANUAL_MATCHED_LOW_MOVEMENT_EPISODE"
+    )
+
+    # If the telemetry dwell is longer than the manual duration, choose a
+    # contiguous row window whose observed duration is as close as possible to
+    # the manual target.  Prefix sums keep this O(n log n), even for dense data.
+    if (
+        target_duration is not None
+        and run_duration > target_duration
+        and len(best_run) > 1
+    ):
+        run_gaps = np.nan_to_num(
+            gap[best_run],
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        )
+
+        prefix = np.concatenate(
+            ([0.0], np.cumsum(run_gaps))
+        )
+
+        window_candidates: list[
+            tuple[
+                tuple[Any, ...],
+                np.ndarray,
+            ]
+        ] = []
+
+        for left in range(len(best_run)):
+            desired = (
+                prefix[left]
+                + target_duration
+            )
+
+            right_position = int(
+                np.searchsorted(
+                    prefix,
+                    desired,
+                    side="left",
+                )
+            )
+
+            # Test the first window meeting the target and the immediately
+            # shorter one.  Whole telemetry rows are preserved; no row splitting.
+            for right in {
+                right_position,
+                right_position - 1,
+            }:
+                if (
+                    right <= left
+                    or right > len(best_run)
+                ):
+                    continue
+
+                rows = best_run[left:right]
+                if len(rows) == 0:
+                    continue
+
+                first = int(rows[0])
+                last = int(rows[-1])
+
+                if (
+                    pd.isna(starts.iloc[first])
+                    or pd.isna(ends.iloc[last])
+                ):
+                    continue
+
+                window_start = pd.Timestamp(
+                    starts.iloc[first]
+                )
+                window_end = pd.Timestamp(
+                    ends.iloc[last]
+                )
+
+                eligible, boundary_offset, start_offset = temporal_relation(
+                    window_start,
+                    window_end,
+                )
+
+                if not eligible:
+                    continue
+
+                observed_duration = float(
+                    prefix[right]
+                    - prefix[left]
+                )
+
+                observed_distance = float(
+                    np.nansum(
+                        distance[rows]
+                    )
+                )
+
+                observed_speed = (
+                    observed_distance
+                    / observed_duration
+                    * 3.6
+                    if observed_duration > 0
+                    else float("inf")
+                )
+
+                contains_anchor = (
+                    anchor is not None
+                    and window_start
+                    <= anchor
+                    <= window_end
+                )
+
+                location_supported = bool(
+                    manual_location_evidence[rows].any()
+                )
+
+                station_supported = bool(
+                    address_station_evidence[rows].any()
+                )
+
+                normal_stop_overlap_seconds = float(
+                    np.nansum(
+                        gap[
+                            rows[
+                                manual_normal_stop_evidence[
+                                    rows
+                                ]
+                            ]
+                        ]
+                    )
+                )
+
+                score = (
+                    abs(
+                        observed_duration
+                        - target_duration
+                    ),
+                    0 if contains_anchor else (1 if anchor is not None else 0),
+                    boundary_offset,
+                    start_offset,
+                    0 if location_supported else (1 if event.location else 0),
+                    0 if station_supported else 1,
+                    normal_stop_overlap_seconds,
+                    observed_speed,
+                    observed_distance,
+                    left,
+                )
+
+                window_candidates.append(
+                    (
+                        score,
+                        np.asarray(
+                            rows,
+                            dtype=int,
+                        ),
+                    )
+                )
+
+        if window_candidates:
+            window_candidates.sort(
+                key=lambda item: item[0]
+            )
+            selected_rows = (
+                window_candidates[0][1]
+            )
+            selection_method = (
+                "MANUAL_DURATION_ONLY_TARGETED_LOW_MOVEMENT_WINDOW"
+                if duration_only_manual
+                else "MANUAL_DURATION_TARGETED_LOW_MOVEMENT_WINDOW"
+            )
+
+    selected_duration = float(
+        np.nansum(
+            gap[selected_rows]
+        )
+    )
+
+    selected_distance = float(
+        np.nansum(
+            distance[selected_rows]
+        )
+    )
+
+    duration_note = (
+        f"Manual target={target_duration:.1f} s; "
+        f"selected telemetry={selected_duration:.1f} s. "
+        if target_duration is not None
+        else (
+            f"No manual duration; selected complete low-movement episode "
+            f"of {selected_duration:.1f} s. "
+        )
+    )
+
+    match = event_match_from_rows(
+        frame=frame,
+        event=event,
+        rows=selected_rows,
+        method=selection_method,
+        station_evidence=address_station_evidence,
+        notes=(
+            duration_note
+            + "Charging/refuelling rows were selected from contiguous "
+            "stationary/very-low-speed telemetry around the approximate manual "
+            "anchor. Clearly moving rows were not added merely to force the "
+            "manual duration. "
+            + f"Selected distance={selected_distance:.1f} m."
+        ),
+    )
+
+    return match, selected_rows
+
+
 def infer_point_stop_from_telemetry(
     frame: pd.DataFrame,
     event: ManualEvent,
@@ -4296,40 +4905,12 @@ def segment_vehicle(
         ),
     )
 
-    # Location is the operational separator requested for stationary events:
-    # a stationary interval in a compatible charging/refuelling zone is an
-    # energy-replenishment event; otherwise it remains STOP/IDLE.  Evidence
-    # can come from a station/operator keyword in telemetry or from the
-    # charging location written in the matched manual record.
+    # Station/operator text and a charging location from the manual record are
+    # supporting evidence for matching a MANUALLY RECORDED replenishment event.
+    # They are deliberately not allowed to create CHARGING/REFUELING on their own.
     charge_zone_evidence = (
         station_address
         | manual_charge_location
-    )
-
-    # If any row in a recorded-zero episode contains compatible charge-zone
-    # evidence, make that evidence available to the complete episode.  This
-    # enables automatic charging/refuelling detection in dense mobile data
-    # even though no individual row crosses the applicable route threshold.
-    zero_episode_station_support = np.zeros(
-        len(frame),
-        dtype=bool,
-    )
-
-    for run in zero_speed_episodes:
-        if bool(
-            charge_zone_evidence[run].any()
-        ):
-            zero_episode_station_support[run] = True
-
-    recorded_zero_long = (
-        recorded_zero_stationary
-        & np.isfinite(
-            zero_speed_episode_duration
-        )
-        & (
-            zero_speed_episode_duration
-            > stop_threshold_seconds
-        )
     )
 
     # Preserve the established sparse-device rule for INTERCITY only.  CITY's
@@ -4410,82 +4991,93 @@ def segment_vehicle(
         else "REFUELING"
     )
 
-    # ------------------------------------------------------------------
-    # 1. MANUAL CHARGING / REFUELLING — HIGHEST PRIORITY
-    # ------------------------------------------------------------------
-    # A maintained manual start+duration window is authoritative event evidence.
-    # It is applied first so a normal stop cannot later reuse the same rows.
-    if replenishment_event is not None:
-        explicit_replenishment = manual_event_overlap_mask(
-            frame,
-            replenishment_event,
-        )
-
-        if bool(explicit_replenishment.any()):
-            rows = np.flatnonzero(explicit_replenishment).astype(int)
-            manual_replenishment_support[rows] = True
-            phase[rows] = replenishment_phase
-            reason[rows] = "MANUAL_REPLENISHMENT_WINDOW"
-            confidence[rows] = "HIGH_MANUAL_EVENT"
-            used_manual_rows.update(map(int, rows))
-            manual_matches.append(
-                event_match_from_rows(
-                    frame=frame,
-                    event=replenishment_event,
-                    rows=rows,
-                    method="MANUAL_EXPLICIT_REPLENISHMENT_WINDOW",
-                    station_evidence=station_address,
-                    notes=(
-                        "Every positive telemetry interval overlapping the "
-                        "manual charging/refuelling start-duration window was "
-                        "reserved before normal stop matching."
-                    ),
-                )
-            )
-        else:
-            replenishment_eligible = (
-                positive
-                & (
-                    stationary_like
-                    | device_gap_long
-                    | charge_zone_evidence
-                )
-            )
-            replenishment_relaxed = (
-                positive
-                & np.isfinite(gap)
-                & (gap > IDLE_MIN_SECONDS)
-            )
-            match = match_event_to_stationary_gap(
-                frame=frame,
-                event=replenishment_event,
-                eligible_mask=replenishment_eligible,
-                address_station_evidence=station_address,
-                used_rows=used_manual_rows,
-                allow_location_only=True,
-                relaxed_mask=replenishment_relaxed,
-            )
-            manual_matches.append(match)
-
-            if (
-                match.match_status == "MATCHED"
-                and match.telemetry_row_index is not None
-            ):
-                row = int(match.telemetry_row_index)
-                manual_replenishment_support[row] = True
-                phase[row] = replenishment_phase
-                reason[row] = "MANUAL_REPLENISHMENT_EVENT_MATCH"
-                confidence[row] = "HIGH_MANUAL_EVENT"
-                used_manual_rows.add(row)
-
-    # ------------------------------------------------------------------
-    # 2. MANUAL NORMAL STOPS — AFTER REPLENISHMENT RESERVATION
-    # ------------------------------------------------------------------
+    # Parse normal-stop evidence before charging selection, but DO NOT assign
+    # STOP/IDLE yet. For duration-only charging records these timestamps are used
+    # only as negative ranking evidence so a known normal stop is not preferred
+    # over an otherwise plausible charging dwell. Charging still keeps phase
+    # priority and is reserved first.
     stop_events = extract_manual_stop_events(
         manual_record,
         context,
     )
 
+    # ------------------------------------------------------------------
+    # 1. MANUAL CHARGING / REFUELLING — HIGHEST PRIORITY
+    # ------------------------------------------------------------------
+    # Manual charging/refuelling is the only source allowed to create these
+    # phases.  The manual timestamp is an approximate anchor; when a manual
+    # duration exists it is used as a TARGET to choose the best contiguous
+    # stationary/very-low-speed telemetry window.  This prevents a 30-minute
+    # charging event from being split across CHARGING + IDLE + INCH merely
+    # because only its zero-speed core satisfied the stricter stationary rule.
+    #
+    # Rows are reserved before normal STOP/IDLE logic.  They can therefore never
+    # be counted again as a stop or idle event.
+    if replenishment_event is not None:
+        (
+            replenishment_match,
+            selected_replenishment_rows,
+        ) = select_manual_replenishment_rows(
+            frame=frame,
+            event=replenishment_event,
+            positive=positive,
+            stationary_like=stationary_like,
+            device_gap_long=device_gap_long,
+            device_speed_kmh=device_speed,
+            gap_speed_kmh=gap_speed,
+            address_station_evidence=station_address,
+            used_rows=used_manual_rows,
+            normal_stop_events=stop_events,
+        )
+
+        if len(selected_replenishment_rows) > 0:
+            rows = np.asarray(
+                selected_replenishment_rows,
+                dtype=int,
+            )
+
+            manual_replenishment_support[rows] = True
+            phase[rows] = replenishment_phase
+            duration_only_replenishment = (
+                replenishment_event.start is None
+                and not replenishment_event.location
+                and replenishment_event.duration_seconds is not None
+                and math.isfinite(
+                    replenishment_event.duration_seconds
+                )
+            )
+
+            reason[rows] = (
+                "MANUAL_REPLENISHMENT_DURATION_ONLY_TARGETED_LOW_MOVEMENT"
+                if duration_only_replenishment
+                else (
+                    "MANUAL_REPLENISHMENT_DURATION_TARGETED_LOW_MOVEMENT"
+                    if (
+                        replenishment_event.duration_seconds is not None
+                        and math.isfinite(
+                            replenishment_event.duration_seconds
+                        )
+                    )
+                    else "MANUAL_REPLENISHMENT_MATCHED_LOW_MOVEMENT_EPISODE"
+                )
+            )
+
+            confidence[rows] = (
+                "MEDIUM_MANUAL_DURATION_ONLY"
+                if duration_only_replenishment
+                else "HIGH_MANUAL_EVENT"
+            )
+            used_manual_rows.update(
+                map(int, rows)
+            )
+
+        manual_matches.append(
+            replenishment_match
+        )
+
+    # ------------------------------------------------------------------
+    # 2. MANUAL NORMAL STOPS — AFTER REPLENISHMENT RESERVATION
+    # ------------------------------------------------------------------
     for event in stop_events:
         if event.is_interval and event.start is not None and event.end is not None:
             overlap = manual_event_overlap_mask(frame, event)
@@ -4614,6 +5206,9 @@ def segment_vehicle(
     # ------------------------------------------------------------------
     # 3. AUTOMATIC RECORDED-ZERO EPISODES (MANUAL EVENTS ALREADY RESERVED)
     # ------------------------------------------------------------------
+    # Any stationary event not already reserved by a manual charging/refuelling
+    # event is STOP/IDLE only. Station-address text is audit/matching evidence and
+    # must never turn an unlogged stationary event into CHARGING/REFUELING.
     for run in zero_speed_episodes:
         unassigned = run[phase[run] == ""]
         if len(unassigned) == 0:
@@ -4623,14 +5218,7 @@ def segment_vehicle(
         if not np.isfinite(episode_time):
             continue
 
-        station_supported = bool(charge_zone_evidence[run].any())
-
-        if episode_time > stop_threshold_seconds and station_supported:
-            phase[unassigned] = replenishment_phase
-            reason[unassigned] = "ZERO_SPEED_EPISODE_LONG + CHARGE_ZONE_EVIDENCE"
-            confidence[unassigned] = "HIGH_TELEMETRY_STATION_EVIDENCE"
-            zero_episode_replenishment[unassigned] = True
-        elif episode_time > stop_threshold_seconds:
+        if episode_time > stop_threshold_seconds:
             phase[unassigned] = "STOP"
             reason[unassigned] = "ZERO_SPEED_EPISODE_DURATION>180S"
             confidence[unassigned] = "HIGH_TELEMETRY_STATIONARY"
@@ -4647,18 +5235,11 @@ def segment_vehicle(
     remaining = positive & (phase == "")
     long_gap = remaining & device_gap_long
 
-    automatic_replenishment = long_gap & charge_zone_evidence
-    phase[automatic_replenishment] = replenishment_phase
-    reason[automatic_replenishment] = "LONG_DEVICE_GAP + CHARGE_ZONE_EVIDENCE"
-    confidence[automatic_replenishment] = "HIGH_TELEMETRY_STATION_EVIDENCE"
+    unsupported_boundary_stop = long_gap & boundaries
+    interior_long_stop = long_gap & ~boundaries
 
-    remaining_long_gap = long_gap & ~automatic_replenishment
-    unsupported_boundary_stop = remaining_long_gap & boundaries
-    interior_long_stop = remaining_long_gap & ~boundaries
-
-    # Boundary long gaps without manual/station evidence are retained for TAT
-    # but explicitly downgraded instead of being allowed to fall through into a
-    # moving phase solely because the two boundary GPS points are far apart.
+    # A long gap with no matching manual charging/refuelling event is STOP.
+    # Boundary gaps remain explicitly downgraded for review.
     phase[unsupported_boundary_stop] = "STOP"
     reason[unsupported_boundary_stop] = "BOUNDARY_STATIONARY_GAP_FALLBACK_STOP"
     confidence[unsupported_boundary_stop] = "VERY_LOW_BOUNDARY_FALLBACK"
@@ -4680,18 +5261,13 @@ def segment_vehicle(
     # ------------------------------------------------------------------
     # 5. REMAINING STATIONARY-LIKE RUNS
     # ------------------------------------------------------------------
-    # Group consecutive rows so dense telemetry uses cumulative duration.
+    # Rule-based fallback for events absent from the manual sheet.
     remaining_stationary = positive & (phase == "") & stationary_like
 
     for run in consecutive_true_runs(remaining_stationary):
         episode_time = float(np.nansum(gap[run]))
-        station_supported = bool(charge_zone_evidence[run].any())
 
-        if episode_time > stop_threshold_seconds and station_supported:
-            phase[run] = replenishment_phase
-            reason[run] = "STATIONARY_RUN_LONG + CHARGE_ZONE_EVIDENCE"
-            confidence[run] = "HIGH_TELEMETRY_STATION_EVIDENCE"
-        elif episode_time > stop_threshold_seconds:
+        if episode_time > stop_threshold_seconds:
             phase[run] = "STOP"
             reason[run] = "STATIONARY_RUN_DURATION>180S"
             confidence[run] = "HIGH_TELEMETRY_STATIONARY"
@@ -5127,6 +5703,40 @@ def segment_vehicle(
     confidence[
         ~positive
     ] = "N/A"
+
+    # Hard segregation invariant: a manually reserved charging/refuelling row
+    # must never be reused by normal STOP/IDLE logic.  Fail loudly if a future
+    # edit breaks this precedence instead of silently adding charging time into
+    # stop time.
+    overlap_manual_stationary = (
+        manual_replenishment_support
+        & manual_stop_support
+    )
+
+    if bool(overlap_manual_stationary.any()):
+        rows = (
+            np.flatnonzero(overlap_manual_stationary)[:20]
+            + 2
+        ).tolist()
+        raise RuntimeError(
+            f"{vehicle} manual charging/refuelling rows were also assigned "
+            f"as manual STOP/IDLE rows. Excel rows: {rows}"
+        )
+
+    wrong_replenishment_phase = (
+        manual_replenishment_support
+        & (phase != replenishment_phase)
+    )
+
+    if bool(wrong_replenishment_phase.any()):
+        rows = (
+            np.flatnonzero(wrong_replenishment_phase)[:20]
+            + 2
+        ).tolist()
+        raise RuntimeError(
+            f"{vehicle} reserved charging/refuelling rows lost their phase "
+            f"priority. Excel rows: {rows}"
+        )
 
     # ------------------------------------------------------------------
     # 12. Classification audit
@@ -6622,8 +7232,8 @@ def main() -> None:
         "    3. Unmatched stationary telemetry uses the 180 s INTERCITY STOP boundary"
     )
     print(
-        "    4. CHARGING/REFUELING requires manual or charge-zone evidence; "
-        "a long gap alone is not replenishment"
+        "    4. CHARGING/REFUELING requires a matched manual charging/refuelling "
+        "event; station/address evidence only helps matching"
     )
     print(
         "    5. Remaining moving rows use INCH / ACC / DEC / CRUISE rules"

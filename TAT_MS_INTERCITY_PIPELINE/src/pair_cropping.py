@@ -1074,7 +1074,16 @@ def _route_validation(
     ice_data: pd.DataFrame,
     rules: dict,
 ) -> dict:
-    """Find one continuous, direction-consistent, equal-distance common crop.
+    """Find common start/end anchors and retain the full interior route.
+
+    The candidate-pairing stage has already established the intended route and
+    direction.  This stage therefore uses GPS matching to identify one common
+    start anchor and one common end anchor, then keeps every original cleaned
+    telemetry row between those two anchors.
+
+    Internal GPS overlap and unmatched-gap metrics are retained for audit only.
+    They do not reject the pair and they are not allowed to create a shorter
+    internal crop.  The existing final cropped-distance check remains hard.
 
     A rejected candidate is retained in the audit workbook, but it is not
     written to ``Results/Paired`` and is not added to ``pair_index.csv``.
@@ -1113,8 +1122,10 @@ def _route_validation(
         (ice_to_ev_distance <= tolerance)
         & (ice_heading_difference <= heading_tolerance)
     )
-    # Requiring support in the reverse nearest-neighbour direction prevents a
-    # dense route from matching a single isolated point on the other route.
+
+    # Preserve the existing reciprocal nearest-neighbour safeguard.  This
+    # prevents a dense route from being accepted merely because many EV points
+    # happen to map onto one isolated ICE point (or vice versa).
     valid_ev_mask &= valid_ice_mask[ev_to_ice_index]
     valid_ice_mask &= valid_ev_mask[ice_to_ev_index]
     valid_ev_mask &= valid_ice_mask[ev_to_ice_index]
@@ -1124,7 +1135,7 @@ def _route_validation(
         "gps_route_validation_status": "REJECTED_ROUTE_VALIDATION",
         "route_validation_quality": "REJECTED_NO_COMPARABLE_COMMON_SECTION",
         "route_validation_reason": "",
-        "crop_selection_method": "CONTINUOUS_ORDERED_DIRECTION_AWARE_MATCHES",
+        "crop_selection_method": "COMMON_START_END_ANCHORS_FULL_INTERIOR",
         "route_point_tolerance_m": tolerance,
         "route_resample_spacing_m": max(
             ev_route["actual_spacing_m"], ice_route["actual_spacing_m"]
@@ -1135,291 +1146,282 @@ def _route_validation(
         "ice_verified_full_haversine_distance_km": ice_route["total_distance_m"] / 1000,
         "ordered_match_count": 0,
     }
-    runs = _continuous_ordered_match_runs(
-        valid_ev_indices,
-        ev_to_ice_index,
-        ev_route["progress_m"],
-        ice_route["progress_m"],
-        rules["maximum_internal_unmatched_distance_m"],
-        rules["minimum_sustained_match_points"],
+
+    if len(valid_ev_indices) < rules["minimum_sustained_match_points"]:
+        base["route_validation_reason"] = (
+            "Too few reciprocal same-direction EV/ICE route matches were found "
+            f"within {tolerance:.0f} m and {heading_tolerance:.0f} degrees."
+        )
+        return base
+
+    # ------------------------------------------------------------------
+    # START / END ONLY CROPPING
+    # ------------------------------------------------------------------
+    # Use all valid reciprocal route matches, remove local backward-index
+    # jitter with the existing longest-nondecreasing-subsequence helper, then
+    # take ONLY the first and last ordered matches as the crop boundaries.
+    #
+    # Crucially, internal mismatches no longer split the trip into multiple
+    # candidate runs and can no longer cause a short internal fragment to be
+    # selected as the pair.
+    # ------------------------------------------------------------------
+    nearest_ice_sequence = [
+        int(ev_to_ice_index[ev_index])
+        for ev_index in valid_ev_indices.tolist()
+    ]
+    ordered_positions = _longest_nondecreasing_subsequence(
+        nearest_ice_sequence
     )
-    if not runs:
+
+    if len(ordered_positions) < rules["minimum_sustained_match_points"]:
         base["route_validation_reason"] = (
-            "No sustained forward-ordered EV/ICE match was found within "
-            f"{tolerance:.0f} m and {heading_tolerance:.0f} degrees."
+            "Reciprocal route matches were found, but too few remained after "
+            "enforcing forward route order."
         )
         return base
 
-    spans = []
-    for run in runs:
-        span = _best_distance_balanced_span(
-            run,
-            ev_route["progress_m"],
-            ice_route["progress_m"],
-            rules,
-        )
-        if span is not None:
-            spans.append(span)
-    if not spans:
-        base["route_validation_reason"] = (
-            "Ordered route matches were found, but no continuous section was "
-            f"at least {rules['minimum_common_route_distance_km']:.3f} km and "
-            "also satisfied the EV/ICE distance-difference tolerance."
-        )
-        return base
-
-    accepted_spans = []
-    rejection_details = []
-    for span in spans:
-        ev_start_index = span["ev_start_index"]
-        ev_end_index = span["ev_end_index"]
-        ice_start_index = span["ice_start_index"]
-        ice_end_index = span["ice_end_index"]
-
-        ev_span_indices = np.arange(ev_start_index, ev_end_index + 1)
-        ice_span_indices = np.arange(ice_start_index, ice_end_index + 1)
-        ev_inside = (
-            valid_ev_mask[ev_span_indices]
-            & (ev_to_ice_index[ev_span_indices] >= ice_start_index)
-            & (ev_to_ice_index[ev_span_indices] <= ice_end_index)
-        )
-        ice_inside = (
-            valid_ice_mask[ice_span_indices]
-            & (ice_to_ev_index[ice_span_indices] >= ev_start_index)
-            & (ice_to_ev_index[ice_span_indices] <= ev_end_index)
-        )
-        ev_overlap = float(ev_inside.mean()) if len(ev_inside) else 0.0
-        ice_overlap = float(ice_inside.mean()) if len(ice_inside) else 0.0
-        minimum_overlap = min(ev_overlap, ice_overlap)
-        maximum_unmatched_m = max(
-            _maximum_false_run_distance_m(
-                ev_inside, ev_route["actual_spacing_m"]
-            ),
-            _maximum_false_run_distance_m(
-                ice_inside, ice_route["actual_spacing_m"]
-            ),
-        )
-        common_length_m = min(span["ev_span_m"], span["ice_span_m"])
-        shorter_trip_coverage = common_length_m / min(
-            ev_route["total_distance_m"], ice_route["total_distance_m"]
-        )
-
-        failures = []
-        if minimum_overlap < rules["minimum_ordered_overlap_fraction"]:
-            failures.append(
-                f"overlap {minimum_overlap:.1%} < "
-                f"{rules['minimum_ordered_overlap_fraction']:.1%}"
-            )
-        if maximum_unmatched_m > rules["maximum_internal_unmatched_distance_m"]:
-            failures.append(
-                f"internal unmatched run {maximum_unmatched_m:.0f} m > "
-                f"{rules['maximum_internal_unmatched_distance_m']:.0f} m"
-            )
-        # Shorter-trip common coverage is retained as an audit/reporting
-        # metric, but it is NOT a hard rejection rule.  A scientifically
-        # usable continuous common section may therefore remain eligible as
-        # COMMON_ROUTE_SEGMENT_TAT when the other hard route and exact
-        # cropped-distance checks pass.
-        coverage_below_reference = (
-            shorter_trip_coverage
-            < rules["minimum_shorter_trip_coverage_fraction"]
-        )
-
-        start_latitude, start_longitude = _anchor_midpoint(
-            ev_route["latitude"][ev_start_index],
-            ev_route["longitude"][ev_start_index],
-            ice_route["latitude"][ice_start_index],
-            ice_route["longitude"][ice_start_index],
-        )
-        end_latitude, end_longitude = _anchor_midpoint(
-            ev_route["latitude"][ev_end_index],
-            ev_route["longitude"][ev_end_index],
-            ice_route["latitude"][ice_end_index],
-            ice_route["longitude"][ice_end_index],
-        )
-        ev_start_progress = float(ev_route["progress_m"][ev_start_index])
-        ev_end_progress = float(ev_route["progress_m"][ev_end_index])
-        ice_start_progress = float(ice_route["progress_m"][ice_start_index])
-        ice_end_progress = float(ice_route["progress_m"][ice_end_index])
-
-        # Validate the distance of the exact rows that would be written.  This
-        # includes the very small midpoint adjustment at the two boundaries.
-        ev_check_crop = _build_crop(
-            ev_data,
-            ev_start_progress,
-            ev_end_progress,
-            (start_latitude, start_longitude),
-            (end_latitude, end_longitude),
-            "VALIDATION_ONLY",
-            "EV",
-            "VALIDATION_ONLY",
-        )
-        ice_check_crop = _build_crop(
-            ice_data,
-            ice_start_progress,
-            ice_end_progress,
-            (start_latitude, start_longitude),
-            (end_latitude, end_longitude),
-            "VALIDATION_ONLY",
-            "ICE",
-            "VALIDATION_ONLY",
-        )
-        ev_check_distance = _crop_metrics(ev_check_crop)["distance_km"]
-        ice_check_distance = _crop_metrics(ice_check_crop)["distance_km"]
+    ordered_pairs = [
         (
-            exact_difference_km,
-            exact_difference_percent,
-            allowed_difference_km,
-            exact_distance_status,
-        ) = _distance_comparability(
-            ev_check_distance,
-            ice_check_distance,
-            rules,
+            int(valid_ev_indices[position]),
+            int(nearest_ice_sequence[position]),
         )
-        if exact_distance_status != "CROPPED_DISTANCES_WITHIN_TOLERANCE":
-            failures.append(
-                f"written-crop distance difference {exact_difference_km:.3f} km > "
-                f"allowed {allowed_difference_km:.3f} km"
-            )
+        for position in ordered_positions
+    ]
 
-        if failures:
-            rejection_details.append("; ".join(failures))
-            continue
+    ev_start_index, ice_start_index = ordered_pairs[0]
+    ev_end_index, ice_end_index = ordered_pairs[-1]
 
-        matched_pairs = span["run"]
-        heading_differences = [
-            ev_heading_difference[ev_index]
-            for ev_index, _ in matched_pairs
-        ]
-        ev_coverage = span["ev_span_m"] / ev_route["total_distance_m"]
-        ice_coverage = span["ice_span_m"] / ice_route["total_distance_m"]
-        accepted_spans.append(
-            {
-                **span,
-                "ev_overlap": ev_overlap,
-                "ice_overlap": ice_overlap,
-                "minimum_overlap": minimum_overlap,
-                "maximum_unmatched_m": maximum_unmatched_m,
-                "common_length_m": common_length_m,
-                "shorter_trip_coverage": shorter_trip_coverage,
-                "coverage_below_reference": coverage_below_reference,
-                "start_latitude": start_latitude,
-                "start_longitude": start_longitude,
-                "end_latitude": end_latitude,
-                "end_longitude": end_longitude,
-                "ev_start_progress": ev_start_progress,
-                "ev_end_progress": ev_end_progress,
-                "ice_start_progress": ice_start_progress,
-                "ice_end_progress": ice_end_progress,
-                "ev_coverage": ev_coverage,
-                "ice_coverage": ice_coverage,
-                "median_heading_difference": float(np.median(heading_differences)),
-                "ev_check_distance": ev_check_distance,
-                "ice_check_distance": ice_check_distance,
-                "exact_difference_km": exact_difference_km,
-                "exact_difference_percent": exact_difference_percent,
-                "allowed_difference_km": allowed_difference_km,
-            }
-        )
+    ev_span_m = float(
+        ev_route["progress_m"][ev_end_index]
+        - ev_route["progress_m"][ev_start_index]
+    )
+    ice_span_m = float(
+        ice_route["progress_m"][ice_end_index]
+        - ice_route["progress_m"][ice_start_index]
+    )
+    common_length_m = min(ev_span_m, ice_span_m)
 
-    if not accepted_spans:
-        detail = rejection_details[0] if rejection_details else "hard route checks failed"
+    minimum_length_m = rules["minimum_common_route_distance_km"] * 1000.0
+    if common_length_m < minimum_length_m:
         base["route_validation_reason"] = (
-            "A possible common section was found but rejected: " + detail
+            "Common start/end anchors were found, but the resulting common "
+            f"section is only {common_length_m / 1000.0:.3f} km; minimum is "
+            f"{rules['minimum_common_route_distance_km']:.3f} km."
         )
         return base
 
-    best = max(
-        accepted_spans,
-        key=lambda item: (
-            item["common_length_m"],
-            item["minimum_overlap"],
-            -item["exact_difference_km"],
+    # Evaluate route evidence INSIDE the fixed common start/end crop.
+    # Internal overlap and unmatched-gap values are retained for audit only;
+    # they do not reject the pair and they cannot shorten the crop.
+    ev_span_indices = np.arange(ev_start_index, ev_end_index + 1)
+    ice_span_indices = np.arange(ice_start_index, ice_end_index + 1)
+
+    ev_inside = (
+        valid_ev_mask[ev_span_indices]
+        & (ev_to_ice_index[ev_span_indices] >= ice_start_index)
+        & (ev_to_ice_index[ev_span_indices] <= ice_end_index)
+    )
+    ice_inside = (
+        valid_ice_mask[ice_span_indices]
+        & (ice_to_ev_index[ice_span_indices] >= ev_start_index)
+        & (ice_to_ev_index[ice_span_indices] <= ev_end_index)
+    )
+
+    ev_overlap = float(ev_inside.mean()) if len(ev_inside) else 0.0
+    ice_overlap = float(ice_inside.mean()) if len(ice_inside) else 0.0
+    minimum_overlap = min(ev_overlap, ice_overlap)
+
+    maximum_unmatched_m = max(
+        _maximum_false_run_distance_m(
+            ev_inside,
+            ev_route["actual_spacing_m"],
+        ),
+        _maximum_false_run_distance_m(
+            ice_inside,
+            ice_route["actual_spacing_m"],
         ),
     )
+
+    shorter_trip_coverage = common_length_m / min(
+        ev_route["total_distance_m"],
+        ice_route["total_distance_m"],
+    )
+
+    failures = []
+
+    # Preserve the existing coverage behaviour exactly: this remains an audit /
+    # scope metric rather than a new hard rejection rule.
+    coverage_below_reference = (
+        shorter_trip_coverage
+        < rules["minimum_shorter_trip_coverage_fraction"]
+    )
+
+    start_latitude, start_longitude = _anchor_midpoint(
+        ev_route["latitude"][ev_start_index],
+        ev_route["longitude"][ev_start_index],
+        ice_route["latitude"][ice_start_index],
+        ice_route["longitude"][ice_start_index],
+    )
+    end_latitude, end_longitude = _anchor_midpoint(
+        ev_route["latitude"][ev_end_index],
+        ev_route["longitude"][ev_end_index],
+        ice_route["latitude"][ice_end_index],
+        ice_route["longitude"][ice_end_index],
+    )
+
+    ev_start_progress = float(ev_route["progress_m"][ev_start_index])
+    ev_end_progress = float(ev_route["progress_m"][ev_end_index])
+    ice_start_progress = float(ice_route["progress_m"][ice_start_index])
+    ice_end_progress = float(ice_route["progress_m"][ice_end_index])
+
+    # Validate the exact start-to-end crops that will be written.  The existing
+    # distance-comparability rule is unchanged.  If the two full interior
+    # crops are not comparable, reject the pair rather than searching for a
+    # shorter internal fragment.
+    ev_check_crop = _build_crop(
+        ev_data,
+        ev_start_progress,
+        ev_end_progress,
+        (start_latitude, start_longitude),
+        (end_latitude, end_longitude),
+        "VALIDATION_ONLY",
+        "EV",
+        "VALIDATION_ONLY",
+    )
+    ice_check_crop = _build_crop(
+        ice_data,
+        ice_start_progress,
+        ice_end_progress,
+        (start_latitude, start_longitude),
+        (end_latitude, end_longitude),
+        "VALIDATION_ONLY",
+        "ICE",
+        "VALIDATION_ONLY",
+    )
+
+    ev_check_distance = _crop_metrics(ev_check_crop)["distance_km"]
+    ice_check_distance = _crop_metrics(ice_check_crop)["distance_km"]
+
+    (
+        exact_difference_km,
+        exact_difference_percent,
+        allowed_difference_km,
+        exact_distance_status,
+    ) = _distance_comparability(
+        ev_check_distance,
+        ice_check_distance,
+        rules,
+    )
+
+    if exact_distance_status != "CROPPED_DISTANCES_WITHIN_TOLERANCE":
+        failures.append(
+            f"written-crop distance difference {exact_difference_km:.3f} km > "
+            f"allowed {allowed_difference_km:.3f} km"
+        )
+
+    if failures:
+        base["route_validation_reason"] = (
+            "Common start/end anchors were found, but the full interior crop "
+            "failed the existing route/distance checks: "
+            + "; ".join(failures)
+        )
+        return base
+
+    heading_differences = [
+        ev_heading_difference[ev_index]
+        for ev_index, _ in ordered_pairs
+    ]
+    median_heading_difference = float(
+        np.median(heading_differences)
+    )
+
+    ev_coverage = ev_span_m / ev_route["total_distance_m"]
+    ice_coverage = ice_span_m / ice_route["total_distance_m"]
+
     comparison_scope = (
         "FULL_ROUTE_TAT_ELIGIBLE"
-        if min(best["ev_coverage"], best["ice_coverage"])
+        if min(ev_coverage, ice_coverage)
         >= rules["full_route_coverage_threshold"]
         else "COMMON_ROUTE_SEGMENT_TAT"
     )
-    start_separation = float(ev_to_ice_distance[best["ev_start_index"]])
-    end_separation = float(ev_to_ice_distance[best["ev_end_index"]])
+
+    start_separation = float(
+        ev_to_ice_distance[ev_start_index]
+    )
+    end_separation = float(
+        ev_to_ice_distance[ev_end_index]
+    )
+
     sparse = (
         _sampling_warning(
-            ev_data, rules["maximum_average_sampling_interval_seconds"]
+            ev_data,
+            rules["maximum_average_sampling_interval_seconds"],
         )
         != "NO_SAMPLING_WARNING"
         or _sampling_warning(
-            ice_data, rules["maximum_average_sampling_interval_seconds"]
+            ice_data,
+            rules["maximum_average_sampling_interval_seconds"],
         )
         != "NO_SAMPLING_WARNING"
     )
+
     coverage_note = ""
-    if best.get("coverage_below_reference", False):
+    if coverage_below_reference:
         coverage_note = (
             " Shorter-trip common coverage is "
-            f"{best['shorter_trip_coverage']:.1%}, below the "
+            f"{shorter_trip_coverage:.1%}, below the "
             f"{rules['minimum_shorter_trip_coverage_fraction']:.0%} reference "
-            "threshold; retained as COMMON_ROUTE_SEGMENT_TAT because the hard "
-            "route-continuity, direction, overlap, internal-gap, minimum-length, "
-            "and exact cropped-distance checks passed."
+            "threshold; retained as COMMON_ROUTE_SEGMENT_TAT because the "
+            "common anchors and exact cropped-distance check passed."
         )
 
     base.update(
         {
             "gps_route_validation_status": "PASSED_ORDERED_ROUTE_VALIDATION",
             "route_validation_quality": (
-                "PASSED_WITH_SPARSE_TELEMETRY_WARNING" if sparse else "PASSED"
+                "PASSED_WITH_SPARSE_TELEMETRY_WARNING"
+                if sparse
+                else "PASSED"
             ),
             "route_validation_reason": (
-                "Continuous same-direction common route confirmed; shared start/end "
-                "anchors and the hard cropped-distance tolerance are satisfied."
+                "Common same-direction start and end anchors confirmed; the "
+                "entire original cleaned telemetry section between those "
+                "anchors is retained. Internal overlap/unmatched-gap metrics "
+                "are audit-only, and the final cropped-distance check is satisfied."
                 + coverage_note
             ),
-            "ordered_match_count": len(best["run"]),
-            "median_heading_difference_degrees": best[
-                "median_heading_difference"
-            ],
-            "ev_ordered_overlap_fraction_within_crop": best["ev_overlap"],
-            "ice_ordered_overlap_fraction_within_crop": best["ice_overlap"],
-            "minimum_ordered_overlap_fraction_within_crop": best[
-                "minimum_overlap"
-            ],
-            "maximum_internal_unmatched_distance_m": best[
-                "maximum_unmatched_m"
-            ],
-            "common_route_length_km": best["common_length_m"] / 1000.0,
-            "shorter_trip_common_coverage_fraction": best[
-                "shorter_trip_coverage"
-            ],
-            "ev_crop_coverage_fraction_of_verified_trip": best["ev_coverage"],
-            "ice_crop_coverage_fraction_of_verified_trip": best["ice_coverage"],
+            "ordered_match_count": len(ordered_pairs),
+            "median_heading_difference_degrees": median_heading_difference,
+            "ev_ordered_overlap_fraction_within_crop": ev_overlap,
+            "ice_ordered_overlap_fraction_within_crop": ice_overlap,
+            "minimum_ordered_overlap_fraction_within_crop": minimum_overlap,
+            "maximum_internal_unmatched_distance_m": maximum_unmatched_m,
+            "common_route_length_km": common_length_m / 1000.0,
+            "shorter_trip_common_coverage_fraction": shorter_trip_coverage,
+            "ev_crop_coverage_fraction_of_verified_trip": ev_coverage,
+            "ice_crop_coverage_fraction_of_verified_trip": ice_coverage,
             "comparison_scope": comparison_scope,
-            "common_start_anchor_latitude": best["start_latitude"],
-            "common_start_anchor_longitude": best["start_longitude"],
-            "common_end_anchor_latitude": best["end_latitude"],
-            "common_end_anchor_longitude": best["end_longitude"],
+            "common_start_anchor_latitude": start_latitude,
+            "common_start_anchor_longitude": start_longitude,
+            "common_end_anchor_latitude": end_latitude,
+            "common_end_anchor_longitude": end_longitude,
             "start_anchor_ev_ice_separation_m": start_separation,
             "end_anchor_ev_ice_separation_m": end_separation,
-            "ev_crop_start_progress_m": best["ev_start_progress"],
-            "ev_crop_end_progress_m": best["ev_end_progress"],
-            "ice_crop_start_progress_m": best["ice_start_progress"],
-            "ice_crop_end_progress_m": best["ice_end_progress"],
-            "cropped_distance_difference_km": best["exact_difference_km"],
-            "cropped_distance_difference_percent_of_shorter_trip": best[
-                "exact_difference_percent"
-            ],
-            "allowed_cropped_distance_difference_km": best[
-                "allowed_difference_km"
-            ],
+            "ev_crop_start_progress_m": ev_start_progress,
+            "ev_crop_end_progress_m": ev_end_progress,
+            "ice_crop_start_progress_m": ice_start_progress,
+            "ice_crop_end_progress_m": ice_end_progress,
+            "cropped_distance_difference_km": exact_difference_km,
+            "cropped_distance_difference_percent_of_shorter_trip": (
+                exact_difference_percent
+            ),
+            "allowed_cropped_distance_difference_km": allowed_difference_km,
             "cropped_distance_comparability_status": (
                 "CROPPED_DISTANCES_WITHIN_TOLERANCE"
             ),
         }
     )
     return base
-
 
 def _interpolate_value(first, second, fraction):
     first_number = _safe_float(first)
@@ -1949,13 +1951,13 @@ def _rules_table(rules: dict) -> pd.DataFrame:
             },
             {
                 "Rule": "Continuous ordered route overlap",
-                "Value": f">= {rules['minimum_ordered_overlap_fraction']:.0%} inside the proposed crop for both trips",
-                "Purpose": "Hard rule; both trips must follow the same route in order",
+                "Value": f">= {rules['minimum_ordered_overlap_fraction']:.0%} reference inside the proposed crop for both trips",
+                "Purpose": "Audit metric only; does not reject a start/end crop",
             },
             {
                 "Rule": "Maximum internal unmatched run",
-                "Value": f"<= {rules['maximum_internal_unmatched_distance_m']:.0f} m",
-                "Purpose": "Reject a hidden detour or unmatched internal excursion",
+                "Value": f"<= {rules['maximum_internal_unmatched_distance_m']:.0f} m reference",
+                "Purpose": "Audit metric only; does not reject a start/end crop",
             },
             {
                 "Rule": "Minimum common route length",
